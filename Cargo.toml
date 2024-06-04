@@ -1,0 +1,12 @@
+[package]
+name = "mark-oxide"
+version = "0.1.0"
+edition = "2021"
+
+
+[workspace]
+members = ["test_generator"]
+
+[workspace.dependencies]
+mark-oxide = { version = "0.1.0", path = "."}
+mark-oxide_test_generator = {version = "0.1.0", path = "test_generator"}
