@@ -1,5 +1,6 @@
 mod parser;
 mod state;
+mod unicode;
 
 #[cfg(test)]
 mod tests {
