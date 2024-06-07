@@ -6,7 +6,7 @@ pub struct PotentialEscapeState {
 }
 
 impl PotentialEscapeState {
-    fn new(state: State) -> Self {
+    pub fn new(state: State) -> Self {
         Self {
             previous_state: Box::new(state),
         }
@@ -39,6 +39,13 @@ impl Transition for PotentialEscapeState {
 
     fn end(self) -> (State, Action) {
         let (state, action) = self.previous_state.transition(Character::Unescaped('\\'));
+        if let State::PotentialEscape(_) = state {
+            return (
+                State::Default(DefaultState),
+                Action::Pass,
+            );
+        }
+
         match action {
             Action::Pass | Action::Dismiss => state.end(),
             Action::Complete(_) => (
@@ -51,6 +58,9 @@ impl Transition for PotentialEscapeState {
 
 impl SubTransition for PotentialEscapeState {
     fn is_start(value: Character) -> bool {
-        value.character() == '\\'
+        match value {
+            Character::PotentiallyEscaped('\\') => true,
+            _ => false,
+        }
     }
 }

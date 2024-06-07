@@ -1,4 +1,5 @@
 use crate::state::{Action, Character, State, SubTransition, Transition};
+use crate::state::atx_heading::ATXHeadingState;
 use crate::state::potential::PotentialState;
 use crate::state::thematic_break::ThematicBreakState;
 
@@ -12,6 +13,14 @@ impl Transition for DefaultState {
             states.push(
                 State::ThematicBreak(
                     ThematicBreakState::new(character)
+                )
+            );
+        }
+
+        if ATXHeadingState::is_start(character) {
+            states.push(
+                State::ATXHeading(
+                    ATXHeadingState::new(character)
                 )
             );
         }

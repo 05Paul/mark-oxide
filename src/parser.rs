@@ -58,6 +58,14 @@ impl<R: Sized + Read> Parser<R> {
                     Leaf::ThematicBreak
                 )
             ),
+            State::ATXHeading(state) => self.document.push(
+                Block::Leaf(
+                    Leaf::AtxHeading {
+                        level: state.character_count,
+                        text: state.text,
+                    }
+                )
+            ),
             _ => {}
         }
     }
@@ -107,12 +115,17 @@ impl Block {
 #[derive(Debug)]
 enum Leaf {
     ThematicBreak,
+    AtxHeading {
+        level: usize,
+        text: String,
+    },
 }
 
 impl Leaf {
     fn to_html(&self) -> String {
         match self {
-            Leaf::ThematicBreak => "<hr />\n".into()
+            Leaf::ThematicBreak => "<hr />\n".into(),
+            Leaf::AtxHeading { level, text } => format!("<h{level}>{text}</h{level}>\n"),
         }
     }
 }
