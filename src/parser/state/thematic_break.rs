@@ -1,7 +1,11 @@
-use crate::state::{Action, Character, State, SubTransition, Transition};
-use crate::state::default::DefaultState;
+use crate::parser::action::Action;
+use crate::parser::character::Character;
+use crate::parser::document::block::Block;
+use crate::parser::document::leaf::Leaf;
+use crate::parser::state::{State, SubTransition, Transition};
 use crate::unicode;
 
+#[derive(Clone)]
 pub struct ThematicBreakState {
     break_character: Option<char>,
     character_count: usize,
@@ -31,58 +35,51 @@ impl ThematicBreakState {
 }
 
 impl Transition for ThematicBreakState {
-    fn transition(self, character: Character) -> (State, Action) {
+    fn transition(self, character: Character) -> Action {
         match (self.break_character, character, self.leading_spaces) {
             // Case: follow-up break character
             (Some('-'), Character::Unescaped('-'), _) |
             (Some('_'), Character::Unescaped('_'), _) |
-            (Some('*'), Character::Unescaped('*'), _) => (
-                State::ThematicBreak(Self {
+            (Some('*'), Character::Unescaped('*'), _) =>
+                Action::Pass(State::ThematicBreak(Self {
                     character_count: self.character_count + 1,
                     ..self
-                }),
-                Action::Pass,
-            ),
+                })),
             // Case: interrupting space
-            (Some(_), Character::Unescaped(unicode::SPACE) | Character::Unescaped(unicode::TAB), _) => (
-                State::ThematicBreak(self),
-                Action::Pass,
-            ),
+            (Some(_), Character::Unescaped(unicode::SPACE) | Character::Unescaped(unicode::TAB), _) =>
+                Action::Pass(
+                    State::ThematicBreak(self),
+                ),
             // Case: first thematic break character
-            (None, Character::Unescaped('-' | '_' | '*'), _) => (
-                State::ThematicBreak(Self {
-                    break_character: Some(character.character()),
-                    character_count: 1,
-                    ..self
-                }),
-                Action::Pass,
-            ),
+            (None, Character::Unescaped('-' | '_' | '*'), _) =>
+                Action::Pass(
+                    State::ThematicBreak(Self {
+                        break_character: Some(character.character()),
+                        character_count: 1,
+                        ..self
+                    })
+                ),
             // Case: leading Space
-            (None, Character::Unescaped(' '), 0..=2) => (
-                State::ThematicBreak(Self {
-                    leading_spaces: self.leading_spaces + 1,
-                    ..self
-                }),
-                Action::Pass,
-            ),
-            _ => (
-                State::Default(DefaultState),
-                Action::Dismiss,
-            )
+            (None, Character::Unescaped(' '), 0..=2) =>
+                Action::Pass(
+                    State::ThematicBreak(Self {
+                        leading_spaces: self.leading_spaces + 1,
+                        ..self
+                    })
+                ),
+            _ => Action::Dismiss,
         }
     }
 
-    fn end(self) -> (State, Action) {
+    fn end(self) -> Action {
         if self.character_count >= 3 {
-            (
-                State::Default(DefaultState),
-                Action::Complete(State::ThematicBreak(self)),
+            Action::Complete(
+                Block::Leaf(
+                    Leaf::ThematicBreak
+                )
             )
         } else {
-            (
-                State::Default(DefaultState),
-                Action::Dismiss,
-            )
+            Action::Dismiss
         }
     }
 }

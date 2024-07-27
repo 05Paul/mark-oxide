@@ -1,7 +1,11 @@
-use crate::state::{Action, Character, State, SubTransition, Transition};
-use crate::state::default::DefaultState;
+use crate::parser::action::Action;
+use crate::parser::character::Character;
+use crate::parser::document::block::Block;
+use crate::parser::document::leaf::Leaf;
+use crate::parser::state::{State, SubTransition, Transition};
 use crate::unicode;
 
+#[derive(Clone)]
 pub struct ATXHeadingState {
     pub character_count: usize,
     leading_spaces: usize,
@@ -29,7 +33,7 @@ impl ATXHeadingState {
 }
 
 impl Transition for ATXHeadingState {
-    fn transition(self, character: Character) -> (State, Action) {
+    fn transition(self, character: Character) -> Action {
         match (character, self.character_count, self.leading_spaces) {
             // Case: hashtag
             (Character::Unescaped('#'), 0..=5, _) => {
@@ -39,95 +43,86 @@ impl Transition for ATXHeadingState {
 
                 match (length, last_temp, contains_hashtag) {
                     // Case: trailing whitespace
-                    (1.., Some(unicode::SPACE | unicode::TAB), true) => (
-                        State::ATXHeading(Self {
-                            text: self.text + &*self.temp,
-                            temp: character.character().to_string(),
-                            ..self
-                        }),
-                        Action::Pass,
-                    ),
+                    (1.., Some(unicode::SPACE | unicode::TAB), true) =>
+                        Action::Pass(
+                            State::ATXHeading(Self {
+                                text: self.text + &*self.temp,
+                                temp: character.character().to_string(),
+                                ..self
+                            })
+                        ),
                     // Case: trailing whitespace or hashtag
-                    (1.., Some(unicode::SPACE | unicode::TAB | '#'), _) => (
-                        State::ATXHeading(Self {
-                            temp: self.temp + character.character().to_string().as_str(),
-                            ..self
-                        }),
-                        Action::Pass
-                    ),
+                    (1.., Some(unicode::SPACE | unicode::TAB | '#'), _) =>
+                        Action::Pass(
+                            State::ATXHeading(Self {
+                                temp: self.temp + character.character().to_string().as_str(),
+                                ..self
+                            })
+                        ),
                     // Case: trailing character
-                    (1.., _, _) => (
-                        State::ATXHeading(Self {
-                            text: self.text + character.character().to_string().as_str(),
-                            ..self
-                        }),
-                        Action::Pass,
-                    ),
+                    (1.., _, _) =>
+                        Action::Pass(
+                            State::ATXHeading(Self {
+                                text: self.text + character.character().to_string().as_str(),
+                                ..self
+                            })
+                        ),
                     // Case: content character
-                    _ => (
+                    _ => Action::Pass(
                         State::ATXHeading(Self {
                             character_count: self.character_count + 1,
                             ..self
-                        }),
-                        Action::Pass,
+                        })
                     )
                 }
             }
             // Case: non-leading space
-            (Character::Unescaped(unicode::SPACE), 1.., _) => (
-                State::ATXHeading(Self {
-                    temp: self.temp + character.character().to_string().as_str(),
-                    ..self
-                }),
-                Action::Pass,
-            ),
+            (Character::Unescaped(unicode::SPACE), 1.., _) =>
+                Action::Pass(
+                    State::ATXHeading(Self {
+                        temp: self.temp + character.character().to_string().as_str(),
+                        ..self
+                    })
+                ),
             // Case: leading space
-            (Character::Unescaped(unicode::SPACE), _, 0..=2) => (
+            (Character::Unescaped(unicode::SPACE), _, 0..=2) => Action::Pass(
                 State::ATXHeading(Self {
                     leading_spaces: self.leading_spaces + 1,
                     ..self
-                }),
-                Action::Pass,
+                })
             ),
             // Case: tab
-            (Character::Unescaped(unicode::TAB), 1.., _) => (
+            (Character::Unescaped(unicode::TAB), 1.., _) => Action::Pass(
                 State::ATXHeading(Self {
                     temp: self.temp + character.character().to_string().as_str(),
                     ..self
-                }),
-                Action::Pass,
+                })
             ),
             // Case: non whitespace character after first '#'
-            (_, 1.., _) => (
+            (_, 1.., _) => Action::Pass(
                 State::ATXHeading(Self {
                     text: self.text + self.temp.to_string().as_str() +
                         character.character().to_string().as_str(),
                     temp: "".into(),
                     ..self
-                }),
-                Action::Pass,
+                })
             ),
             // Case: dismiss
-            _ => (
-                State::Default(DefaultState),
-                Action::Dismiss,
-            )
+            _ => Action::Dismiss
         }
     }
 
-    fn end(self) -> (State, Action) {
+    fn end(self) -> Action {
         let last = self.text.chars().last();
         match (self.character_count, last) {
-            (0, _) => (
-                State::Default(DefaultState),
-                Action::Dismiss,
-            ),
-            _ => (
-                State::Default(DefaultState),
-                Action::Complete(State::ATXHeading(Self {
-                    text: self.text.trim().to_string(),
-                    ..self
-                })),
+            (0, _) => Action::Dismiss,
+            _ => Action::Complete(
+                Block::Leaf(
+                    Leaf::AtxHeading {
+                        level: self.character_count,
+                        text: self.text.trim().to_string(),
+                    }
+                )
             ),
         }
     }

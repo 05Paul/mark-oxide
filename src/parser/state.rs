@@ -1,9 +1,11 @@
-use crate::state::atx_heading::ATXHeadingState;
-use crate::state::default::DefaultState;
-use crate::state::line_ending::LineEndingState;
-use crate::state::potential::PotentialState;
-use crate::state::potential_escape::PotentialEscapeState;
-use crate::state::thematic_break::ThematicBreakState;
+use crate::parser::action::Action;
+use crate::parser::character::Character;
+use crate::parser::state::atx_heading::ATXHeadingState;
+use crate::parser::state::default::DefaultState;
+use crate::parser::state::line_ending::LineEndingState;
+use crate::parser::state::potential::PotentialState;
+use crate::parser::state::potential_escape::PotentialEscapeState;
+use crate::parser::state::thematic_break::ThematicBreakState;
 
 mod potential_escape;
 mod default;
@@ -13,14 +15,17 @@ mod line_ending;
 mod atx_heading;
 
 pub trait Transition {
-    fn transition(self, character: Character) -> (State, Action);
-    fn end(self) -> (State, Action);
+    fn transition(self, character: Character) -> Action;
+    fn end(self) -> Action;
 }
 
 pub trait SubTransition: Transition {
     fn is_start(value: Character) -> bool;
 }
 
+// Todo: implement SetextHeading (requires paragraph)
+// Todo: implement a generic solution for leading spaces
+#[derive(Clone)]
 pub enum State {
     Default(DefaultState),
     ATXHeading(ATXHeadingState),
@@ -37,18 +42,16 @@ impl Default for State {
 }
 
 impl Transition for State {
-    fn transition(self, character: Character) -> (State, Action) {
+    fn transition(self, character: Character) -> Action {
         if LineEndingState::is_start(character) {
-            return (
-                State::LineEnding(LineEndingState::new(character.character(), self)),
-                Action::Pass,
+            return Action::Pass(
+                State::LineEnding(LineEndingState::new(character.character(), self))
             );
         }
 
         if PotentialEscapeState::is_start(character) {
-            return (
+            return Action::Pass(
                 State::PotentialEscape(PotentialEscapeState::new(self)),
-                Action::Pass,
             );
         }
 
@@ -62,7 +65,7 @@ impl Transition for State {
         }
     }
 
-    fn end(self) -> (State, Action) {
+    fn end(self) -> Action {
         match self {
             State::Default(state) => state.end(),
             State::ATXHeading(state) => state.end(),
@@ -70,39 +73,6 @@ impl Transition for State {
             State::Potential(state) => state.end(),
             State::PotentialEscape(state) => state.end(),
             State::LineEnding(state) => state.end(),
-        }
-    }
-}
-
-pub enum Action {
-    Pass,
-    Dismiss,
-    Complete(State),
-}
-
-#[derive(Clone, Copy)]
-pub enum Character {
-    PotentiallyEscaped(char),
-    Escaped(char),
-    Unescaped(char),
-}
-
-impl Character {
-    fn character(&self) -> char {
-        match self {
-            Character::PotentiallyEscaped(character) => *character,
-            Character::Escaped(character) => *character,
-            Character::Unescaped(character) => *character,
-        }
-    }
-}
-
-impl Character {
-    pub fn new(character: char) -> Self {
-        if PotentialEscapeState::is_start(Character::PotentiallyEscaped(character)) {
-            Character::PotentiallyEscaped(character)
-        } else {
-            Character::Unescaped(character)
         }
     }
 }

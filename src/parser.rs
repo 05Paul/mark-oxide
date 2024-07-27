@@ -1,12 +1,19 @@
+mod state;
+mod character;
+mod action;
+mod document;
+
 use std::io;
 use std::io::Read;
-use crate::state::{Action, Character, State, Transition};
+use std::ops::Deref;
+use crate::parser::action::Action;
+use crate::parser::document::Document;
+use crate::parser::state::{State, Transition};
 use crate::unicode;
 
 pub struct Parser<R> {
     reader: R,
     state: State,
-    buffer: Vec<char>,
     document: Document,
 }
 
@@ -15,7 +22,6 @@ impl<R: Sized + Read> Parser<R> {
         Self {
             reader,
             state: State::default(),
-            buffer: Vec::new(),
             document: Document::new(),
         }
     }
@@ -25,107 +31,45 @@ impl<R: Sized + Read> Parser<R> {
         self.reader.read_to_string(&mut data)?;
 
         for char in data.chars() {
-            let char = if char == unicode::NULL {
-                unicode::REPLACEMENT
-            } else {
-                char
-            };
+            let char = Self::replace_null(char);
 
-            let (new_state, action) = self.state.transition(Character::new(char));
-            self.state = new_state;
-
-            self.handle_action(action);
+            let action = self.state.transition(char.into());
+            match action {
+                Action::Pass(state) => self.state = state,
+                Action::Dismiss => self.state = State::default(),
+                Action::Complete(block) => {
+                    self.state = State::default();
+                    self.document.push(block);
+                }
+                Action::Bi { first, second } => match (first.deref().clone(), second.deref().clone()) {
+                    (Action::Complete(block), Action::Pass(state)) => {
+                        self.state = state;
+                        self.document.push(block)
+                    },
+                    _ => {unreachable!()}
+                },
+            }
         }
 
-        let (new_state, action) = self.state.end();
-        self.state = new_state;
-        self.handle_action(action);
+        let action = self.state.end();
+        match action {
+            Action::Pass(state) => self.state = state,
+            Action::Dismiss => self.state = State::default(),
+            Action::Complete(block) => {
+                self.state = State::default();
+                self.document.push(block);
+            }
+            Action::Bi { .. } => unreachable!(),
+        }
 
         Ok(self.document.to_string())
     }
 
-    fn handle_action(&mut self, action: Action) {
-        match action {
-            Action::Complete(state) => self.handle_completion(state),
-            _ => {}
-        }
-    }
-
-    fn handle_completion(&mut self, state: State) {
-        match state {
-            State::ThematicBreak(_) => self.document.push(
-                Block::Leaf(
-                    Leaf::ThematicBreak
-                )
-            ),
-            State::ATXHeading(state) => self.document.push(
-                Block::Leaf(
-                    Leaf::AtxHeading {
-                        level: state.character_count,
-                        text: state.text,
-                    }
-                )
-            ),
-            _ => {}
-        }
-    }
-}
-
-struct Document {
-    content: Vec<Block>,
-}
-
-impl Document {
-    fn new() -> Self {
-        Self {
-            content: Vec::new(),
-        }
-    }
-
-    fn push(&mut self, block: Block) {
-        self.content.push(block);
-    }
-
-    fn to_string(self) -> String {
-        let mut out = String::new();
-
-        for block in self.content {
-            out.extend(block.to_html().chars());
-        }
-
-        out
-    }
-}
-
-#[derive(Debug)]
-enum Block {
-    Container,
-    Leaf(Leaf),
-}
-
-impl Block {
-    fn to_html(&self) -> String {
-        match self {
-            Block::Container => String::new(),
-            Block::Leaf(leaf) => leaf.to_html(),
-        }
-    }
-}
-
-#[derive(Debug)]
-enum Leaf {
-    ThematicBreak,
-    AtxHeading {
-        level: usize,
-        text: String,
-    },
-}
-
-impl Leaf {
-    fn to_html(&self) -> String {
-        match self {
-            Leaf::ThematicBreak => "<hr />\n".into(),
-            Leaf::AtxHeading { level, text } => format!("<h{level}>{text}</h{level}>\n"),
+    fn replace_null(character: char) -> char {
+        if character == unicode::NULL {
+            unicode::REPLACEMENT
+        } else {
+            character
         }
     }
 }
