@@ -1,7 +1,6 @@
 use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::state::{State, SubTransition, Transition};
-use crate::parser::state::default::DefaultState;
 use crate::unicode;
 
 #[derive(Clone)]
@@ -24,8 +23,7 @@ impl Transition for LineEndingState {
         match (self.character, character.character()) {
             (unicode::CARRIAGE_RETURN, unicode::LINE_FEED) => self.previous_state.end(),
             _ => {
-                let x = self.previous_state.end();
-                match x {
+                match self.previous_state.end() {
                     Action::Pass(state) => state.transition(character),
                     Action::Complete(block) => Action::Complete(block)
                         .merge(

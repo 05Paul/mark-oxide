@@ -1,7 +1,6 @@
 use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::state::{State, SubTransition, Transition};
-use crate::parser::state::default::DefaultState;
 
 #[derive(Clone)]
 pub struct PotentialEscapeState {
@@ -34,7 +33,7 @@ impl Transition for PotentialEscapeState {
                 Action::Pass(state) => state.transition(
                     Character::Unescaped(character.character())
                 ),
-                Action::Dismiss => State::Default(DefaultState).transition(
+                Action::Dismiss => State::default().transition(
                     Character::Unescaped(character.character())
                 ),
                 Action::Complete(_) => unreachable!("Should not be reached"),
@@ -47,7 +46,7 @@ impl Transition for PotentialEscapeState {
         let action = self.previous_state.transition(Character::Unescaped('\\'));
 
         match action {
-            Action::Pass(State::PotentialEscape(_)) => Action::Pass(State::Default(DefaultState)),
+            Action::Pass(State::PotentialEscape(_)) => Action::Pass(State::default()),
             Action::Pass(state) => state.end(),
             _ => action,
         }
