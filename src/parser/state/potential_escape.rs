@@ -1,6 +1,6 @@
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::state::{State, SubTransition, Transition};
+use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 
 #[derive(Clone)]
 pub struct PotentialEscapeState {
@@ -50,6 +50,10 @@ impl Transition for PotentialEscapeState {
             Action::Pass(state) => state.end(),
             _ => action,
         }
+    }
+
+    fn end_line(self, _: LineEnding) -> Action {
+        self.end()
     }
 }
 

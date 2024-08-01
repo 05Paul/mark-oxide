@@ -3,7 +3,7 @@ use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
-use crate::parser::state::{State, SubTransition, Transition};
+use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::unicode;
 
 pub const STAR: char = '*';
@@ -63,6 +63,10 @@ impl Transition for ThematicBreakState {
         } else {
             Action::Dismiss
         }
+    }
+
+    fn end_line(self, _: LineEnding) -> Action {
+        self.end()
     }
 }
 

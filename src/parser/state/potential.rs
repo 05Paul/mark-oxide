@@ -1,6 +1,6 @@
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::state::{State, Transition};
+use crate::parser::state::{LineEnding, State, Transition};
 
 #[derive(Clone)]
 pub struct PotentialState {
@@ -25,7 +25,7 @@ impl Transition for PotentialState {
                     return Action::Complete(block);
                 }
                 Action::Pass(state) => states.push(state),
-                Action::Dismiss => {},
+                Action::Dismiss => {}
                 Action::Bi { .. } => unreachable!(),
             }
         }
@@ -48,5 +48,29 @@ impl Transition for PotentialState {
         }
 
         Action::Dismiss
+    }
+
+    fn end_line(self, line_ending: LineEnding) -> Action {
+        let mut states = Vec::new();
+        for state in self.states {
+            match state.end_line(line_ending) {
+                Action::Complete(block) => {
+                    return Action::Complete(block);
+                }
+                Action::Pass(state) => states.push(state),
+                _ => {}
+            }
+        }
+
+        if states.is_empty() {
+            Action::Dismiss
+        } else {
+            Action::Pass(
+                State::Potential(
+                    PotentialState::new(states)
+                )
+            )
+        }
+
     }
 }

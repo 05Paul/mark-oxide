@@ -3,7 +3,7 @@ use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
-use crate::parser::state::{State, SubTransition, Transition};
+use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::unicode;
 
 pub const HASHTAG: char = '#';
@@ -120,6 +120,10 @@ impl Transition for ATXHeadingState {
                 )
             ),
         }
+    }
+
+    fn end_line(self, _: LineEnding) -> Action {
+        self.end()
     }
 }
 
