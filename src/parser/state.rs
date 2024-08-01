@@ -6,6 +6,7 @@ use crate::parser::state::indented_code_block::IndentedCodeBlockState;
 use crate::parser::state::line_ending::LineEndingState;
 use crate::parser::state::potential::PotentialState;
 use crate::parser::state::potential_escape::PotentialEscapeState;
+use crate::parser::state::setext_heading::SetextHeadingState;
 use crate::parser::state::thematic_break::ThematicBreakState;
 use crate::unicode;
 
@@ -16,6 +17,7 @@ mod thematic_break;
 mod line_ending;
 mod atx_heading;
 mod indented_code_block;
+mod setext_heading;
 
 pub trait Transition {
     fn transition(self, character: Character) -> Action;
@@ -49,6 +51,7 @@ impl Into<String> for LineEnding {
 pub enum State {
     Default(DefaultState),
     ATXHeading(ATXHeadingState),
+    SetextHeading(SetextHeadingState),
     ThematicBreak(ThematicBreakState),
     IndentedCodeBlock(IndentedCodeBlockState),
     Potential(PotentialState),
@@ -79,6 +82,7 @@ impl Transition for State {
         match self {
             State::Default(state) => state.transition(character),
             State::ATXHeading(state) => state.transition(character),
+            State::SetextHeading(state) => state.transition(character),
             State::ThematicBreak(state) => state.transition(character),
             State::IndentedCodeBlock(state) => state.transition(character),
             State::Potential(state) => state.transition(character),
@@ -91,6 +95,7 @@ impl Transition for State {
         match self {
             State::Default(state) => state.end(),
             State::ATXHeading(state) => state.end(),
+            State::SetextHeading(state) => state.end(),
             State::ThematicBreak(state) => state.end(),
             State::IndentedCodeBlock(state) => state.end(),
             State::Potential(state) => state.end(),
@@ -103,6 +108,7 @@ impl Transition for State {
         match self {
             State::Default(state) => state.end_line(line_ending),
             State::ATXHeading(state) => state.end_line(line_ending),
+            State::SetextHeading(state) => state.end_line(line_ending),
             State::ThematicBreak(state) => state.end_line(line_ending),
             State::IndentedCodeBlock(state) => state.end_line(line_ending),
             State::Potential(state) => state.end_line(line_ending),

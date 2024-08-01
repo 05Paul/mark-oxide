@@ -18,21 +18,36 @@ impl PotentialState {
 impl Transition for PotentialState {
     fn transition(self, character: Character) -> Action {
         let mut states = Vec::new();
+        let mut completion = Action::Dismiss;
 
         for state in self.states {
             match state.transition(character) {
                 Action::Complete(block) => {
-                    return Action::Complete(block);
+                    completion = Action::Complete(block);
+                    break;
                 }
                 Action::Pass(state) => states.push(state),
                 Action::Dismiss => {}
-                Action::Bi { .. } => unreachable!(),
+                Action::Bi { first, second } =>
+                    match (first.as_ref().clone(), second.as_ref().clone()) {
+                        (Action::Complete(block), Action::Pass(state)) => {
+                            completion = Action::Complete(block);
+                            states.push(state);
+                            break;
+                        },
+                        _ => unreachable!(),
+                    },
             }
         }
 
-        Action::Pass(
-            State::Potential(PotentialState::new(states))
-        )
+        let pass = if states.is_empty() {
+            Action::Dismiss
+        } else {
+            Action::Pass(
+                State::Potential(PotentialState::new(states)))
+        };
+
+        completion.merge(pass)
     }
 
     fn end(self) -> Action {
@@ -71,6 +86,5 @@ impl Transition for PotentialState {
                 )
             )
         }
-
     }
 }

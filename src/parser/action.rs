@@ -15,7 +15,7 @@ pub enum Action {
 impl Action {
     pub fn merge(self, action: Action) -> Action {
         match (self, action) {
-            (Action::Dismiss, Action::Dismiss) => Action::Dismiss,
+            (Action::Dismiss, action) | (action, Action::Dismiss)=> action,
             (first, second) => {
                 Action::Bi {
                     first: Box::new(first),

@@ -85,14 +85,13 @@ impl Transition for IndentedCodeBlockState {
                     }
                 )
             ),
-            // Todo probably BiAction
             (Character::Unescaped(_), _, _, 0..=3) => Action::Complete(
                 Block::Leaf(
                     Leaf::IndentedCodeBlock {
-                        text: self.text
+                        text: self.text.trim_end().to_string()
                     }
                 )
-            ),
+            ).merge(State::default().transition(character)),
             _ => Action::Dismiss
         }
     }

@@ -52,8 +52,14 @@ impl Transition for PotentialEscapeState {
         }
     }
 
-    fn end_line(self, _: LineEnding) -> Action {
-        self.end()
+    fn end_line(self, line_ending: LineEnding) -> Action {
+        let action = self.previous_state.transition(Character::Unescaped('\\'));
+
+        match action {
+            Action::Pass(State::PotentialEscape(_)) => Action::Pass(State::default()),
+            Action::Pass(state) => state.end_line(line_ending),
+            _ => action,
+        }
     }
 }
 
