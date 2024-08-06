@@ -2,6 +2,7 @@ use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::state::{LineEnding, State, Transition};
 use crate::parser::state::atx_heading::ATXHeadingState;
+use crate::parser::state::fenced_code_block::FencedCodeBlockState;
 use crate::parser::state::indented_code_block::IndentedCodeBlockState;
 use crate::parser::state::potential::PotentialState;
 use crate::parser::state::setext_heading::SetextHeadingState;
@@ -59,6 +60,12 @@ impl Transition for DefaultState {
             if let Ok(state) = ATXHeadingState::try_from(character) {
                 states.push(
                     State::ATXHeading(state)
+                );
+            }
+
+            if let Ok(state) = FencedCodeBlockState::new(leading_spaces, character) {
+                states.push(
+                    State::FencedCodeBlock(state)
                 );
             }
         }

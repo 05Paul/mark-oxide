@@ -1,0 +1,203 @@
+use crate::error::Error;
+use crate::parser::action::Action;
+use crate::parser::character::Character;
+use crate::parser::document::block::Block;
+use crate::parser::document::leaf::Leaf;
+use crate::parser::state::{LineEnding, State, SubTransition, Transition};
+use crate::unicode;
+use crate::unicode::is_blank_text;
+
+const BACKTICK: char = '`';
+const TILDE: char = '~';
+
+#[derive(Clone)]
+pub struct FencedCodeBlockState {
+    text: String,
+    indentation: usize,
+    fence_character: char,
+    opening_fence_length: usize,
+    opening_fence_ended: bool,
+    closing_fence_length: usize,
+    leading_spaces: usize,
+    non_leading: bool,
+    info: Option<String>,
+    info_done: bool,
+}
+
+impl FencedCodeBlockState {
+    pub fn new(indentation: usize, character: Character) -> Result<Self, Error> {
+        if let Character::Unescaped(BACKTICK | TILDE) = character {
+            Ok(
+                Self {
+                    text: "".into(),
+                    indentation,
+                    fence_character: character.character(),
+                    opening_fence_length: 1,
+                    opening_fence_ended: false,
+                    closing_fence_length: 0,
+                    leading_spaces: 0,
+                    non_leading: false,
+                    info: None,
+                    info_done: false,
+                }
+            )
+        } else {
+            Err(
+                Error::StartStateError
+            )
+        }
+    }
+}
+
+impl Transition for FencedCodeBlockState {
+    fn transition(self, character: Character) -> Action {
+        match (character, self.fence_character, self.opening_fence_ended, self.non_leading, self.leading_spaces, self.info_done) {
+            (Character::Unescaped(BACKTICK), BACKTICK, false, _, _, false) |
+            (Character::Unescaped(TILDE), TILDE, false, _, _, false) => Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        opening_fence_length: self.opening_fence_length + 1,
+                        ..self
+                    }
+                )
+            ),
+            (Character::Unescaped(unicode::SPACE), _, _, _, _, false) => {
+                Action::Pass(
+                    State::FencedCodeBlock(
+                        Self {
+                            info_done: self.info.is_some(),
+                            ..self
+                        }
+                    )
+                )
+            }
+            (Character::Unescaped(character) | Character::Escaped(character), _, _, _, _, false) => Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        info: self.info.map(|info| info + character.to_string().as_str()).or(Some(character.to_string())),
+                        ..self
+                    }
+                )
+            ),
+            (Character::Unescaped(character) | Character::Escaped(character), _, false, _, _, true) => Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        ..self
+                    }
+                )
+            ),
+            (Character::Unescaped(BACKTICK), BACKTICK, true, false, 0..=3, true) |
+            (Character::Unescaped(TILDE), TILDE, true, false, 0..=3, true) => Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        closing_fence_length: self.closing_fence_length + 1,
+                        ..self
+                    }
+                )
+            ),
+            (Character::Unescaped(unicode::SPACE), _, true, false, _, true) => {
+                Action::Pass(
+                    State::FencedCodeBlock(
+                        Self {
+                            text: self.text + self.fence_character.to_string().repeat(self.closing_fence_length).as_str(),
+                            closing_fence_length: 0,
+                            leading_spaces: self.leading_spaces + 1,
+                            non_leading: self.closing_fence_length != 0,
+                            ..self
+                        }
+                    )
+                )
+            }
+            (Character::Unescaped(character) | Character::Escaped(character), _, true, _, _, true) => Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.to_string().repeat(self.closing_fence_length).as_str() + character.to_string().as_str(),
+                        closing_fence_length: 0,
+                        leading_spaces: 0,
+                        non_leading: true,
+                        ..self
+                    }
+                )
+            ),
+            _ => Action::Dismiss,
+        }
+    }
+
+    fn end(self) -> Action {
+        let mut text = self.text;
+
+        if !ends_with_blank_or_new_line(&text) {
+            text.push(unicode::LINE_FEED);
+        }
+
+        // text.push_str(self.fence_character.to_string().repeat(self.closing_fence_length).as_str());
+
+
+        if self.opening_fence_length < 3 {
+            Action::Dismiss
+        } else {
+            Action::Complete(
+                Block::Leaf(
+                    Leaf::FencedCodeBlock {
+                        text,
+                        info: self.info,
+                    }
+                )
+            )
+        }
+    }
+
+    fn end_line(self, line_ending: LineEnding) -> Action {
+        if self.opening_fence_length < 3 {
+            Action::Dismiss
+        } else if !self.opening_fence_ended {
+            Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        opening_fence_ended: true,
+                        leading_spaces: 0,
+                        non_leading: false,
+                        info_done: true,
+                        ..self
+                    }
+                )
+            )
+        } else if self.closing_fence_length >= self.opening_fence_length {
+            Action::Complete(
+                Block::Leaf(
+                    Leaf::FencedCodeBlock {
+                        text: self.text,
+                        info: self.info,
+                    }
+                )
+            )
+        } else {
+            Action::Pass(
+                State::FencedCodeBlock(
+                    Self {
+                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.to_string().repeat(self.closing_fence_length).as_str() + <LineEnding as Into<String>>::into(line_ending).as_str(),
+                        closing_fence_length: 0,
+                        leading_spaces: 0,
+                        non_leading: false,
+                        info_done: true,
+                        ..self
+                    }
+                )
+            )
+        }
+    }
+}
+
+impl SubTransition for FencedCodeBlockState {
+    fn is_start(value: Character) -> bool {
+        FencedCodeBlockState::new(0, value).is_ok()
+    }
+}
+
+fn ends_with_blank_or_new_line(text: &str) -> bool {
+    text.ends_with(|character| character == unicode::LINE_FEED || character == unicode::CARRIAGE_RETURN) ||
+        text.lines()
+            .last()
+            .map(is_blank_text)
+            .unwrap_or(true)
+}

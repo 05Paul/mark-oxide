@@ -2,6 +2,7 @@ use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::state::atx_heading::ATXHeadingState;
 use crate::parser::state::default::DefaultState;
+use crate::parser::state::fenced_code_block::FencedCodeBlockState;
 use crate::parser::state::indented_code_block::IndentedCodeBlockState;
 use crate::parser::state::line_ending::LineEndingState;
 use crate::parser::state::potential::PotentialState;
@@ -18,6 +19,7 @@ mod line_ending;
 mod atx_heading;
 mod indented_code_block;
 mod setext_heading;
+mod fenced_code_block;
 
 pub trait Transition {
     fn transition(self, character: Character) -> Action;
@@ -46,7 +48,6 @@ impl Into<String> for LineEnding {
     }
 }
 
-// Todo: implement SetextHeading (requires paragraph)
 #[derive(Clone)]
 pub enum State {
     Default(DefaultState),
@@ -54,6 +55,7 @@ pub enum State {
     SetextHeading(SetextHeadingState),
     ThematicBreak(ThematicBreakState),
     IndentedCodeBlock(IndentedCodeBlockState),
+    FencedCodeBlock(FencedCodeBlockState),
     Potential(PotentialState),
     PotentialEscape(PotentialEscapeState),
     LineEnding(LineEndingState),
@@ -85,6 +87,7 @@ impl Transition for State {
             State::SetextHeading(state) => state.transition(character),
             State::ThematicBreak(state) => state.transition(character),
             State::IndentedCodeBlock(state) => state.transition(character),
+            State::FencedCodeBlock(state) => state.transition(character),
             State::Potential(state) => state.transition(character),
             State::PotentialEscape(state) => state.transition(character),
             State::LineEnding(state) => state.transition(character),
@@ -98,6 +101,7 @@ impl Transition for State {
             State::SetextHeading(state) => state.end(),
             State::ThematicBreak(state) => state.end(),
             State::IndentedCodeBlock(state) => state.end(),
+            State::FencedCodeBlock(state) => state.end(),
             State::Potential(state) => state.end(),
             State::PotentialEscape(state) => state.end(),
             State::LineEnding(state) => state.end(),
@@ -111,6 +115,7 @@ impl Transition for State {
             State::SetextHeading(state) => state.end_line(line_ending),
             State::ThematicBreak(state) => state.end_line(line_ending),
             State::IndentedCodeBlock(state) => state.end_line(line_ending),
+            State::FencedCodeBlock(state) => state.end_line(line_ending),
             State::Potential(state) => state.end_line(line_ending),
             State::PotentialEscape(state) => state.end_line(line_ending),
             State::LineEnding(state) => state.end_line(line_ending),
