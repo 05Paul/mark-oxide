@@ -45,10 +45,6 @@ impl Transition for LineEndingState {
         }
     }
 
-    fn end(self) -> Action {
-        self.previous_state.end()
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         let action = self.previous_state.end_line(self.previous_line_ending);
 
@@ -56,6 +52,10 @@ impl Transition for LineEndingState {
             Action::Pass(state) => state.end_line(line_ending),
             _ => action,
         }
+    }
+
+    fn end(self) -> Action {
+        self.previous_state.end()
     }
 }
 

@@ -23,8 +23,8 @@ mod fenced_code_block;
 
 pub trait Transition {
     fn transition(self, character: Character) -> Action;
-    fn end(self) -> Action;
     fn end_line(self, line_ending: LineEnding) -> Action;
+    fn end(self) -> Action;
 }
 
 pub trait SubTransition: Transition {
@@ -94,20 +94,6 @@ impl Transition for State {
         }
     }
 
-    fn end(self) -> Action {
-        match self {
-            State::Default(state) => state.end(),
-            State::ATXHeading(state) => state.end(),
-            State::SetextHeading(state) => state.end(),
-            State::ThematicBreak(state) => state.end(),
-            State::IndentedCodeBlock(state) => state.end(),
-            State::FencedCodeBlock(state) => state.end(),
-            State::Potential(state) => state.end(),
-            State::PotentialEscape(state) => state.end(),
-            State::LineEnding(state) => state.end(),
-        }
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         match self {
             State::Default(state) => state.end_line(line_ending),
@@ -119,6 +105,20 @@ impl Transition for State {
             State::Potential(state) => state.end_line(line_ending),
             State::PotentialEscape(state) => state.end_line(line_ending),
             State::LineEnding(state) => state.end_line(line_ending),
+        }
+    }
+
+    fn end(self) -> Action {
+        match self {
+            State::Default(state) => state.end(),
+            State::ATXHeading(state) => state.end(),
+            State::SetextHeading(state) => state.end(),
+            State::ThematicBreak(state) => state.end(),
+            State::IndentedCodeBlock(state) => state.end(),
+            State::FencedCodeBlock(state) => state.end(),
+            State::Potential(state) => state.end(),
+            State::PotentialEscape(state) => state.end(),
+            State::LineEnding(state) => state.end(),
         }
     }
 }

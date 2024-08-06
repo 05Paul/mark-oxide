@@ -106,6 +106,10 @@ impl Transition for ATXHeadingState {
         }
     }
 
+    fn end_line(self, _: LineEnding) -> Action {
+        self.end()
+    }
+
     fn end(self) -> Action {
         let last = self.text.chars().last();
         match (self.character_count, last) {
@@ -115,10 +119,6 @@ impl Transition for ATXHeadingState {
                 text: self.text.trim().to_string(),
             }.into_action(),
         }
-    }
-
-    fn end_line(self, _: LineEnding) -> Action {
-        self.end()
     }
 }
 

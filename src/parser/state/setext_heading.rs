@@ -81,20 +81,6 @@ impl Transition for SetextHeadingState {
         }
     }
 
-    fn end(self) -> Action {
-        match (self.line_break, self.underline) {
-            (true, Some(LEVEL1)) => Leaf::SetextHeading {
-                level: 1,
-                text: self.content.trim_end().to_string(),
-            }.into_action(),
-            (true, Some(LEVEL2)) => Leaf::SetextHeading {
-                level: 2,
-                text: self.content.trim_end().to_string(),
-            }.into_action(),
-            _ => Action::Dismiss,
-        }
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         match (self.line_break, self.underline) {
             (true, Some(LEVEL1)) => Leaf::SetextHeading {
@@ -117,6 +103,20 @@ impl Transition for SetextHeadingState {
                     }
                 )
             ),
+            _ => Action::Dismiss,
+        }
+    }
+
+    fn end(self) -> Action {
+        match (self.line_break, self.underline) {
+            (true, Some(LEVEL1)) => Leaf::SetextHeading {
+                level: 1,
+                text: self.content.trim_end().to_string(),
+            }.into_action(),
+            (true, Some(LEVEL2)) => Leaf::SetextHeading {
+                level: 2,
+                text: self.content.trim_end().to_string(),
+            }.into_action(),
             _ => Action::Dismiss,
         }
     }

@@ -52,16 +52,16 @@ impl Transition for ThematicBreakState {
         }
     }
 
+    fn end_line(self, _: LineEnding) -> Action {
+        self.end()
+    }
+
     fn end(self) -> Action {
         if self.character_count >= 3 {
             Leaf::ThematicBreak.into_action()
         } else {
             Action::Dismiss
         }
-    }
-
-    fn end_line(self, _: LineEnding) -> Action {
-        self.end()
     }
 }
 

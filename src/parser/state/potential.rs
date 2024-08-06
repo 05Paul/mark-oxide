@@ -50,21 +50,6 @@ impl Transition for PotentialState {
         completion.merge(pass)
     }
 
-    fn end(self) -> Action {
-        for state in self.states {
-            match state.end() {
-                Action::Complete(block) => {
-                    return Action::Complete(
-                        block
-                    );
-                }
-                _ => {}
-            }
-        }
-
-        Action::Dismiss
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         let mut states = Vec::new();
         for state in self.states {
@@ -86,5 +71,20 @@ impl Transition for PotentialState {
                 )
             )
         }
+    }
+
+    fn end(self) -> Action {
+        for state in self.states {
+            match state.end() {
+                Action::Complete(block) => {
+                    return Action::Complete(
+                        block
+                    );
+                }
+                _ => {}
+            }
+        }
+
+        Action::Dismiss
     }
 }

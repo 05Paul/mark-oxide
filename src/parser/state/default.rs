@@ -76,14 +76,14 @@ impl Transition for DefaultState {
         )
     }
 
+    fn end_line(self, _: LineEnding) -> Action {
+        self.end()
+    }
+
     fn end(self) -> Action {
         Action::Pass(
             State::Default(DefaultState::default())
         )
-    }
-
-    fn end_line(self, _: LineEnding) -> Action {
-        self.end()
     }
 }
 

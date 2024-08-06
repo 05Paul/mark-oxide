@@ -92,12 +92,6 @@ impl Transition for IndentedCodeBlockState {
         }
     }
 
-    fn end(self) -> Action {
-        Leaf::IndentedCodeBlock {
-            text: self.text
-        }.into_action()
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         if self.text.trim().is_empty() {
             return Action::Pass(
@@ -139,6 +133,12 @@ impl Transition for IndentedCodeBlockState {
                 }
             )
         )
+    }
+
+    fn end(self) -> Action {
+        Leaf::IndentedCodeBlock {
+            text: self.text
+        }.into_action()
     }
 }
 

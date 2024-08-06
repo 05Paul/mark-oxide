@@ -122,26 +122,6 @@ impl Transition for FencedCodeBlockState {
         }
     }
 
-    fn end(self) -> Action {
-        let mut text = self.text;
-
-        if !ends_with_blank_or_new_line(&text) {
-            text.push(unicode::LINE_FEED);
-        }
-
-        // text.push_str(self.fence_character.to_string().repeat(self.closing_fence_length).as_str());
-
-
-        if self.opening_fence_length < 3 {
-            Action::Dismiss
-        } else {
-            Leaf::FencedCodeBlock {
-                text,
-                info: self.info,
-            }.into_action()
-        }
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         if self.opening_fence_length < 3 {
             Action::Dismiss
@@ -175,6 +155,26 @@ impl Transition for FencedCodeBlockState {
                     }
                 )
             )
+        }
+    }
+
+    fn end(self) -> Action {
+        let mut text = self.text;
+
+        if !ends_with_blank_or_new_line(&text) {
+            text.push(unicode::LINE_FEED);
+        }
+
+        // text.push_str(self.fence_character.to_string().repeat(self.closing_fence_length).as_str());
+
+
+        if self.opening_fence_length < 3 {
+            Action::Dismiss
+        } else {
+            Leaf::FencedCodeBlock {
+                text,
+                info: self.info,
+            }.into_action()
         }
     }
 }

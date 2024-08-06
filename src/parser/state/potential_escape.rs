@@ -42,22 +42,22 @@ impl Transition for PotentialEscapeState {
         }
     }
 
-    fn end(self) -> Action {
-        let action = self.previous_state.transition(Character::Unescaped('\\'));
-
-        match action {
-            Action::Pass(State::PotentialEscape(_)) => Action::Pass(State::default()),
-            Action::Pass(state) => state.end(),
-            _ => action,
-        }
-    }
-
     fn end_line(self, line_ending: LineEnding) -> Action {
         let action = self.previous_state.transition(Character::Unescaped('\\'));
 
         match action {
             Action::Pass(State::PotentialEscape(_)) => Action::Pass(State::default()),
             Action::Pass(state) => state.end_line(line_ending),
+            _ => action,
+        }
+    }
+
+    fn end(self) -> Action {
+        let action = self.previous_state.transition(Character::Unescaped('\\'));
+
+        match action {
+            Action::Pass(State::PotentialEscape(_)) => Action::Pass(State::default()),
+            Action::Pass(state) => state.end(),
             _ => action,
         }
     }
