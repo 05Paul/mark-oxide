@@ -1,6 +1,5 @@
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
 use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::parser::state::default::DefaultState;
@@ -84,44 +83,28 @@ impl Transition for SetextHeadingState {
 
     fn end(self) -> Action {
         match (self.line_break, self.underline) {
-            (true, Some(LEVEL1)) => Action::Complete(
-                Block::Leaf(
-                    Leaf::SetextHeading {
-                        level: 1,
-                        text: self.content.trim_end().to_string(),
-                    }
-                )
-            ),
-            (true, Some(LEVEL2)) => Action::Complete(
-                Block::Leaf(
-                    Leaf::SetextHeading {
-                        level: 2,
-                        text: self.content.trim_end().to_string(),
-                    }
-                )
-            ),
+            (true, Some(LEVEL1)) => Leaf::SetextHeading {
+                level: 1,
+                text: self.content.trim_end().to_string(),
+            }.into_action(),
+            (true, Some(LEVEL2)) => Leaf::SetextHeading {
+                level: 2,
+                text: self.content.trim_end().to_string(),
+            }.into_action(),
             _ => Action::Dismiss,
         }
     }
 
     fn end_line(self, line_ending: LineEnding) -> Action {
         match (self.line_break, self.underline) {
-            (true, Some(LEVEL1)) => Action::Complete(
-                Block::Leaf(
-                    Leaf::SetextHeading {
-                        level: 1,
-                        text: self.content.trim_end().to_string(),
-                    }
-                )
-            ),
-            (true, Some(LEVEL2)) => Action::Complete(
-                Block::Leaf(
-                    Leaf::SetextHeading {
-                        level: 2,
-                        text: self.content.trim_end().to_string(),
-                    }
-                )
-            ),
+            (true, Some(LEVEL1)) => Leaf::SetextHeading {
+                level: 1,
+                text: self.content.trim_end().to_string(),
+            }.into_action(),
+            (true, Some(LEVEL2)) => Leaf::SetextHeading {
+                level: 2,
+                text: self.content.trim_end().to_string(),
+            }.into_action(),
             (true, None) => Action::Dismiss,
             (false, _) => Action::Pass(
                 State::SetextHeading(

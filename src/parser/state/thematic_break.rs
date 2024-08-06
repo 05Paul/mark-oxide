@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
 use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::unicode;
@@ -55,11 +54,7 @@ impl Transition for ThematicBreakState {
 
     fn end(self) -> Action {
         if self.character_count >= 3 {
-            Action::Complete(
-                Block::Leaf(
-                    Leaf::ThematicBreak
-                )
-            )
+            Leaf::ThematicBreak.into_action()
         } else {
             Action::Dismiss
         }

@@ -1,3 +1,6 @@
+use crate::parser::action::Action;
+use crate::parser::document::block::Block;
+
 #[derive(Debug, Clone)]
 pub enum Leaf {
     ThematicBreak,
@@ -25,8 +28,14 @@ impl Leaf {
             Leaf::AtxHeading { level, text, } |
             Leaf::SetextHeading { level, text, } => format!("<h{level}>{text}</h{level}>\n"),
             Leaf::IndentedCodeBlock { text, } => format!("<pre><code>{text}\n</code></pre>\n"),
-            Leaf::FencedCodeBlock {text, info: None, } => format!("<pre><code>{text}</code></pre>\n"),
             Leaf::FencedCodeBlock {text, info: Some(info), } => format!("<pre><code class=\"language-{info}\">{text}</code></pre>\n"),
+            Leaf::FencedCodeBlock {text, .. } => format!("<pre><code>{text}</code></pre>\n"),
         }
+    }
+
+    pub fn into_action(self) -> Action {
+        Action::Complete(
+            Block::Leaf(self)
+        )
     }
 }

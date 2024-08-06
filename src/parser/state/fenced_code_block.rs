@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
 use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::unicode;
@@ -79,7 +78,7 @@ impl Transition for FencedCodeBlockState {
                     }
                 )
             ),
-            (Character::Unescaped(character) | Character::Escaped(character), _, false, _, _, true) => Action::Pass(
+            (Character::Unescaped(_) | Character::Escaped(_), _, false, _, _, true) => Action::Pass(
                 State::FencedCodeBlock(
                     Self {
                         ..self
@@ -136,14 +135,10 @@ impl Transition for FencedCodeBlockState {
         if self.opening_fence_length < 3 {
             Action::Dismiss
         } else {
-            Action::Complete(
-                Block::Leaf(
-                    Leaf::FencedCodeBlock {
-                        text,
-                        info: self.info,
-                    }
-                )
-            )
+            Leaf::FencedCodeBlock {
+                text,
+                info: self.info,
+            }.into_action()
         }
     }
 
@@ -163,14 +158,10 @@ impl Transition for FencedCodeBlockState {
                 )
             )
         } else if self.closing_fence_length >= self.opening_fence_length {
-            Action::Complete(
-                Block::Leaf(
-                    Leaf::FencedCodeBlock {
-                        text: self.text,
-                        info: self.info,
-                    }
-                )
-            )
+            Leaf::FencedCodeBlock {
+                text: self.text,
+                info: self.info,
+            }.into_action()
         } else {
             Action::Pass(
                 State::FencedCodeBlock(

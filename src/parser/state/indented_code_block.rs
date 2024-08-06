@@ -1,6 +1,5 @@
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
 use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::unicode;
@@ -85,25 +84,18 @@ impl Transition for IndentedCodeBlockState {
                     }
                 )
             ),
-            (Character::Unescaped(_), _, _, 0..=3) => Action::Complete(
-                Block::Leaf(
-                    Leaf::IndentedCodeBlock {
-                        text: self.text.trim_end().to_string()
-                    }
-                )
-            ).merge(State::default().transition(character)),
+            (Character::Unescaped(_), _, _, 0..=3) => Leaf::IndentedCodeBlock {
+                text: self.text.trim_end().to_string()
+            }.into_action()
+                .merge(State::default().transition(character)),
             _ => Action::Dismiss
         }
     }
 
     fn end(self) -> Action {
-        Action::Complete(
-            Block::Leaf(
-                Leaf::IndentedCodeBlock {
-                    text: self.text
-                }
-            )
-        )
+        Leaf::IndentedCodeBlock {
+            text: self.text
+        }.into_action()
     }
 
     fn end_line(self, line_ending: LineEnding) -> Action {

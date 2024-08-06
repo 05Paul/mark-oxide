@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
 use crate::parser::state::{LineEnding, State, SubTransition, Transition};
 use crate::unicode;
@@ -111,14 +110,10 @@ impl Transition for ATXHeadingState {
         let last = self.text.chars().last();
         match (self.character_count, last) {
             (0, _) => Action::Dismiss,
-            _ => Action::Complete(
-                Block::Leaf(
-                    Leaf::AtxHeading {
-                        level: self.character_count,
-                        text: self.text.trim().to_string(),
-                    }
-                )
-            ),
+            _ => Leaf::AtxHeading {
+                level: self.character_count,
+                text: self.text.trim().to_string(),
+            }.into_action(),
         }
     }
 
