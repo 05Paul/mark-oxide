@@ -9,11 +9,35 @@ use crate::unicode::is_blank_text;
 const BACKTICK: char = '`';
 const TILDE: char = '~';
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct FenceCharacter(char);
+
+impl FenceCharacter {
+    pub const BACKTICK: FenceCharacter = FenceCharacter(BACKTICK);
+    pub const TILDE: FenceCharacter = FenceCharacter(TILDE);
+
+    pub fn repeat(&self, n: usize) -> String {
+        self.0.to_string().repeat(n)
+    }
+}
+
+impl TryFrom<&Character> for FenceCharacter {
+    type Error = Error;
+
+    fn try_from(value: &Character) -> Result<Self, Self::Error> {
+        match value {
+            Character::Unescaped(BACKTICK) => Ok(FenceCharacter::BACKTICK),
+            Character::Unescaped(TILDE) => Ok(FenceCharacter::TILDE),
+            _ => Err(Error::Conversion),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct FencedCodeBlockState {
     text: String,
     indentation: usize,
-    fence_character: char,
+    fence_character: FenceCharacter,
     opening_fence_length: usize,
     opening_fence_ended: bool,
     closing_fence_length: usize,
@@ -25,34 +49,28 @@ pub struct FencedCodeBlockState {
 
 impl FencedCodeBlockState {
     pub fn new(indentation: usize, character: Character) -> Result<Self, Error> {
-        if let Character::Unescaped(BACKTICK | TILDE) = character {
-            Ok(
-                Self {
-                    text: "".into(),
-                    indentation,
-                    fence_character: character.character(),
-                    opening_fence_length: 1,
-                    opening_fence_ended: false,
-                    closing_fence_length: 0,
-                    leading_spaces: 0,
-                    non_leading: false,
-                    info: None,
-                    info_done: false,
-                }
-            )
-        } else {
-            Err(
-                Error::StartStateError
-            )
-        }
+        Ok(
+            Self {
+                text: "".into(),
+                indentation,
+                fence_character: FenceCharacter::try_from(&character)?,
+                opening_fence_length: 1,
+                opening_fence_ended: false,
+                closing_fence_length: 0,
+                leading_spaces: 0,
+                non_leading: false,
+                info: None,
+                info_done: false,
+            }
+        )
     }
 }
 
 impl Transition for FencedCodeBlockState {
     fn transition(self, character: Character) -> Action {
         match (character, self.fence_character, self.opening_fence_ended, self.non_leading, self.leading_spaces, self.info_done) {
-            (Character::Unescaped(BACKTICK), BACKTICK, false, _, _, false) |
-            (Character::Unescaped(TILDE), TILDE, false, _, _, false) => Action::Pass(
+            (Character::Unescaped(BACKTICK), FenceCharacter::BACKTICK, false, _, _, false) |
+            (Character::Unescaped(TILDE), FenceCharacter::TILDE, false, _, _, false) => Action::Pass(
                 State::FencedCodeBlock(
                     Self {
                         opening_fence_length: self.opening_fence_length + 1,
@@ -85,8 +103,8 @@ impl Transition for FencedCodeBlockState {
                     }
                 )
             ),
-            (Character::Unescaped(BACKTICK), BACKTICK, true, false, 0..=3, true) |
-            (Character::Unescaped(TILDE), TILDE, true, false, 0..=3, true) => Action::Pass(
+            (Character::Unescaped(BACKTICK), FenceCharacter::BACKTICK, true, false, 0..=3, true) |
+            (Character::Unescaped(TILDE), FenceCharacter::TILDE, true, false, 0..=3, true) => Action::Pass(
                 State::FencedCodeBlock(
                     Self {
                         closing_fence_length: self.closing_fence_length + 1,
@@ -98,7 +116,7 @@ impl Transition for FencedCodeBlockState {
                 Action::Pass(
                     State::FencedCodeBlock(
                         Self {
-                            text: self.text + self.fence_character.to_string().repeat(self.closing_fence_length).as_str(),
+                            text: self.text + self.fence_character.repeat(self.closing_fence_length).as_str(),
                             closing_fence_length: 0,
                             leading_spaces: self.leading_spaces + 1,
                             non_leading: self.closing_fence_length != 0,
@@ -110,7 +128,7 @@ impl Transition for FencedCodeBlockState {
             (Character::Unescaped(character) | Character::Escaped(character), _, true, _, _, true) => Action::Pass(
                 State::FencedCodeBlock(
                     Self {
-                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.to_string().repeat(self.closing_fence_length).as_str() + character.to_string().as_str(),
+                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.repeat(self.closing_fence_length).as_str() + character.to_string().as_str(),
                         closing_fence_length: 0,
                         leading_spaces: 0,
                         non_leading: true,
@@ -146,7 +164,7 @@ impl Transition for FencedCodeBlockState {
             Action::Pass(
                 State::FencedCodeBlock(
                     Self {
-                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.to_string().repeat(self.closing_fence_length).as_str() + <LineEnding as Into<String>>::into(line_ending).as_str(),
+                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.repeat(self.closing_fence_length).as_str() + <LineEnding as Into<String>>::into(line_ending).as_str(),
                         closing_fence_length: 0,
                         leading_spaces: 0,
                         non_leading: false,

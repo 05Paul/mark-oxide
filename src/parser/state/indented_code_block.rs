@@ -27,7 +27,7 @@ impl IndentedCodeBlockState {
 
 impl Transition for IndentedCodeBlockState {
     fn transition(self, character: Character) -> Action {
-        match (character, self.newline, self.leading_spaces, self.leading_space_count) {
+        match (character.clone(), self.newline, self.leading_spaces, self.leading_space_count) {
             (Character::Unescaped(unicode::SPACE), _, _, 0..=3) => Action::Pass(
                 State::IndentedCodeBlock(
                     Self {
@@ -40,7 +40,7 @@ impl Transition for IndentedCodeBlockState {
             (Character::Unescaped(unicode::SPACE), _, true, 4..) => Action::Pass(
                 State::IndentedCodeBlock(
                     Self {
-                        line_break_buffer: self.line_break_buffer + character.character().to_string().as_str(),
+                        line_break_buffer: self.line_break_buffer + character.to_string().as_str(),
                         leading_space_count: self.leading_space_count + 1,
                         ..self
                     }
@@ -58,7 +58,7 @@ impl Transition for IndentedCodeBlockState {
             (Character::Unescaped(unicode::TAB), _, true, 4..) => Action::Pass(
                 State::IndentedCodeBlock(
                     Self {
-                        line_break_buffer: self.line_break_buffer + character.character().to_string().as_str(),
+                        line_break_buffer: self.line_break_buffer + character.to_string().as_str(),
                         leading_space_count: self.leading_space_count + 4,
                         ..self
                     }
@@ -137,7 +137,10 @@ impl Transition for IndentedCodeBlockState {
 
     fn end(self) -> Action {
         Leaf::IndentedCodeBlock {
-            text: self.text
+            text: self.text.trim_end_matches([
+                unicode::CARRIAGE_RETURN,
+                unicode::LINE_FEED,
+            ]).to_string()
         }.into_action()
     }
 }

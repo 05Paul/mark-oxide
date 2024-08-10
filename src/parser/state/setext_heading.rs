@@ -1,3 +1,4 @@
+use crate::error::Error;
 use crate::parser::action::Action;
 use crate::parser::character::Character;
 use crate::parser::document::leaf::Leaf;
@@ -8,10 +9,30 @@ use crate::unicode;
 const LEVEL1: char = '=';
 const LEVEL2: char = '-';
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct UnderlineCharacter(char);
+
+impl UnderlineCharacter {
+    pub const LEVEL1: UnderlineCharacter = UnderlineCharacter(LEVEL1);
+    pub const LEVEL2: UnderlineCharacter = UnderlineCharacter(LEVEL2);
+}
+
+impl TryFrom<&Character> for UnderlineCharacter {
+    type Error = Error;
+
+    fn try_from(value: &Character) -> Result<Self, Self::Error> {
+        match value {
+            Character::Unescaped(LEVEL1) => Ok(UnderlineCharacter::LEVEL1),
+            Character::Unescaped(LEVEL2) => Ok(UnderlineCharacter::LEVEL2),
+            _ => Err(Error::Conversion)
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct SetextHeadingState {
     content: String,
-    underline: Option<char>,
+    underline: Option<UnderlineCharacter>,
     leading_spaces: usize,
     trail: bool,
     line_break: bool,
@@ -20,7 +41,7 @@ pub struct SetextHeadingState {
 impl SetextHeadingState {
     pub fn new(character: Character) -> Self {
         Self {
-            content: character.character().to_string(),
+            content: character.to_string(),
             underline: None,
             leading_spaces: 0,
             trail: false,
@@ -31,11 +52,11 @@ impl SetextHeadingState {
 
 impl Transition for SetextHeadingState {
     fn transition(self, character: Character) -> Action {
-        match (self.line_break, self.underline, character, self.leading_spaces, self.trail) {
+        match (self.line_break, self.underline, character.clone(), self.leading_spaces, self.trail) {
             (_, None, Character::Unescaped(LEVEL1 | LEVEL2), _, _) => Action::Pass(
                 State::SetextHeading(
                     Self {
-                        underline: Some(character.character()),
+                        underline: UnderlineCharacter::try_from(&character).ok(),
                         ..self
                     }
                 )
@@ -61,8 +82,8 @@ impl Transition for SetextHeadingState {
                     }
                 )
             ),
-            (true, Some(LEVEL1), Character::Unescaped(LEVEL1), _, false) |
-            (true, Some(LEVEL2), Character::Unescaped(LEVEL2), _, false) => Action::Pass(
+            (true, Some(UnderlineCharacter::LEVEL1), Character::Unescaped(LEVEL1), _, false) |
+            (true, Some(UnderlineCharacter::LEVEL2), Character::Unescaped(LEVEL2), _, false) => Action::Pass(
                 State::SetextHeading(
                     Self {
                         ..self
@@ -83,11 +104,11 @@ impl Transition for SetextHeadingState {
 
     fn end_line(self, line_ending: LineEnding) -> Action {
         match (self.line_break, self.underline) {
-            (true, Some(LEVEL1)) => Leaf::SetextHeading {
+            (true, Some(UnderlineCharacter::LEVEL1)) => Leaf::SetextHeading {
                 level: 1,
                 text: self.content.trim_end().to_string(),
             }.into_action(),
-            (true, Some(LEVEL2)) => Leaf::SetextHeading {
+            (true, Some(UnderlineCharacter::LEVEL2)) => Leaf::SetextHeading {
                 level: 2,
                 text: self.content.trim_end().to_string(),
             }.into_action(),
@@ -109,11 +130,11 @@ impl Transition for SetextHeadingState {
 
     fn end(self) -> Action {
         match (self.line_break, self.underline) {
-            (true, Some(LEVEL1)) => Leaf::SetextHeading {
+            (true, Some(UnderlineCharacter::LEVEL1)) => Leaf::SetextHeading {
                 level: 1,
                 text: self.content.trim_end().to_string(),
             }.into_action(),
-            (true, Some(LEVEL2)) => Leaf::SetextHeading {
+            (true, Some(UnderlineCharacter::LEVEL2)) => Leaf::SetextHeading {
                 level: 2,
                 text: self.content.trim_end().to_string(),
             }.into_action(),

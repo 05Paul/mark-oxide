@@ -27,14 +27,14 @@ impl TryFrom<Character> for ATXHeadingState {
                 }
             )
         } else {
-            Err(Error::StartStateError)
+            Err(Error::StartState)
         }
     }
 }
 
 impl Transition for ATXHeadingState {
     fn transition(self, character: Character) -> Action {
-        match (character, self.character_count) {
+        match (character.clone(), self.character_count) {
             // Case: hashtag
             (Character::Unescaped(HASHTAG), 0..=5) => {
                 let length = self.text.len() + self.temp.len();
@@ -47,7 +47,7 @@ impl Transition for ATXHeadingState {
                         Action::Pass(
                             State::ATXHeading(Self {
                                 text: self.text + &*self.temp,
-                                temp: character.character().to_string(),
+                                temp: character.to_string(),
                                 ..self
                             })
                         ),
@@ -55,7 +55,7 @@ impl Transition for ATXHeadingState {
                     (1.., Some(unicode::SPACE | unicode::TAB | HASHTAG), _) =>
                         Action::Pass(
                             State::ATXHeading(Self {
-                                temp: self.temp + character.character().to_string().as_str(),
+                                temp: self.temp + character.to_string().as_str(),
                                 ..self
                             })
                         ),
@@ -63,7 +63,7 @@ impl Transition for ATXHeadingState {
                     (1.., _, _) =>
                         Action::Pass(
                             State::ATXHeading(Self {
-                                text: self.text + character.character().to_string().as_str(),
+                                text: self.text + character.to_string().as_str(),
                                 ..self
                             })
                         ),
@@ -80,7 +80,7 @@ impl Transition for ATXHeadingState {
             (Character::Unescaped(unicode::SPACE), 1..) =>
                 Action::Pass(
                     State::ATXHeading(Self {
-                        temp: self.temp + character.character().to_string().as_str(),
+                        temp: self.temp + character.to_string().as_str(),
                         ..self
                     })
                 ),
@@ -88,7 +88,7 @@ impl Transition for ATXHeadingState {
             // Case: tab
             (Character::Unescaped(unicode::TAB), 1..) => Action::Pass(
                 State::ATXHeading(Self {
-                    temp: self.temp + character.character().to_string().as_str(),
+                    temp: self.temp + character.to_string().as_str(),
                     ..self
                 })
             ),
@@ -96,7 +96,7 @@ impl Transition for ATXHeadingState {
             (_, 1..) => Action::Pass(
                 State::ATXHeading(Self {
                     text: self.text + self.temp.to_string().as_str() +
-                        character.character().to_string().as_str(),
+                        character.to_string().as_str(),
                     temp: "".into(),
                     ..self
                 })

@@ -1,75 +1,41 @@
+use std::io;
+use std::io::Read;
+
+use crate::parser::character_parser::CharacterParser;
+use crate::parser::document::Document;
+
 mod state;
 mod character;
 mod action;
 mod document;
-
-use std::io;
-use std::io::Read;
-use std::ops::Deref;
-use crate::parser::action::Action;
-use crate::parser::document::Document;
-use crate::parser::state::{State, Transition};
-use crate::unicode;
+mod character_parser;
 
 pub struct Parser<R> {
     reader: R,
-    state: State,
-    document: Document,
+    character_parser: CharacterParser,
 }
 
 impl<R: Sized + Read> Parser<R> {
     pub fn from_reader(reader: R) -> Self {
         Self {
             reader,
-            state: State::default(),
-            document: Document::new(),
+            character_parser: CharacterParser::new(),
         }
     }
 
-    pub fn parse_to_string(mut self) -> io::Result<String> {
+    pub fn parse(mut self) -> io::Result<Document> {
         let mut data = String::new();
         self.reader.read_to_string(&mut data)?;
 
         for char in data.chars() {
-            let char = Self::replace_null(char);
-
-            let action = self.state.transition(char.into());
-            match action {
-                Action::Pass(state) => self.state = state,
-                Action::Dismiss => self.state = State::default(),
-                Action::Complete(block) => {
-                    self.state = State::default();
-                    self.document.push(block);
-                }
-                Action::Bi { first, second } => match (first.deref().clone(), second.deref().clone()) {
-                    (Action::Complete(block), Action::Pass(state)) => {
-                        self.state = state;
-                        self.document.push(block)
-                    },
-                    _ => {unreachable!()}
-                },
-            }
+            self.character_parser.parse_character(char);
         }
 
-        let action = self.state.end();
-        match action {
-            Action::Pass(state) => self.state = state,
-            Action::Dismiss => self.state = State::default(),
-            Action::Complete(block) => {
-                self.state = State::default();
-                self.document.push(block);
-            }
-            Action::Bi { .. } => unreachable!(),
-        }
-
-        Ok(self.document.to_string())
+        Ok(self.character_parser.end_document())
     }
 
-    fn replace_null(character: char) -> char {
-        if character == unicode::NULL {
-            unicode::REPLACEMENT
-        } else {
-            character
-        }
+    pub fn parse_to_string(self) -> io::Result<String> {
+        self.parse()
+            .map(Document::to_string)
     }
 }

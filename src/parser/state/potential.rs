@@ -21,7 +21,7 @@ impl Transition for PotentialState {
         let mut completion = Action::Dismiss;
 
         for state in self.states {
-            match state.transition(character) {
+            match state.transition(character.clone()) {
                 Action::Complete(block) => {
                     completion = Action::Complete(block);
                     break;

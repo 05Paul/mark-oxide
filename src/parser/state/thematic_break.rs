@@ -9,9 +9,31 @@ pub const STAR: char = '*';
 pub const DASH: char = '-';
 pub const UNDERSCORE: char = '_';
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct BreakCharacter(char);
+
+impl BreakCharacter {
+    pub const STAR: BreakCharacter = BreakCharacter(STAR);
+    pub const DASH: BreakCharacter = BreakCharacter(DASH);
+    pub const UNDERSCORE: BreakCharacter = BreakCharacter(UNDERSCORE);
+}
+
+impl TryFrom<&Character> for BreakCharacter {
+    type Error = Error;
+
+    fn try_from(value: &Character) -> Result<Self, Self::Error> {
+        match value {
+            Character::Unescaped(STAR) => Ok(BreakCharacter::STAR),
+            Character::Unescaped(DASH) => Ok(BreakCharacter::DASH),
+            Character::Unescaped(UNDERSCORE) => Ok(BreakCharacter::UNDERSCORE),
+            _ => Err(Error::Conversion),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct ThematicBreakState {
-    break_character: char,
+    break_character: BreakCharacter,
     character_count: usize,
 }
 
@@ -19,16 +41,12 @@ impl TryFrom<Character> for ThematicBreakState {
     type Error = Error;
 
     fn try_from(value: Character) -> Result<Self, Self::Error> {
-        if Self::is_start(value) {
-            Ok(
-                Self {
-                    break_character: value.character(),
-                    character_count: 1,
-                }
-            )
-        } else {
-            Err(Error::StartStateError)
-        }
+        Ok(
+            Self {
+                break_character: BreakCharacter::try_from(&value)?,
+                character_count: 1,
+            }
+        )
     }
 }
 
@@ -36,9 +54,9 @@ impl Transition for ThematicBreakState {
     fn transition(self, character: Character) -> Action {
         match (self.break_character, character) {
             // Case: follow-up break character
-            (DASH, Character::Unescaped(DASH)) |
-            (UNDERSCORE, Character::Unescaped(UNDERSCORE)) |
-            (STAR, Character::Unescaped(STAR)) =>
+            (BreakCharacter::DASH, Character::Unescaped(DASH)) |
+            (BreakCharacter::UNDERSCORE, Character::Unescaped(UNDERSCORE)) |
+            (BreakCharacter::STAR, Character::Unescaped(STAR)) =>
                 Action::Pass(State::ThematicBreak(Self {
                     character_count: self.character_count + 1,
                     ..self

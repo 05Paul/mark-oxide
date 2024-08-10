@@ -47,23 +47,23 @@ impl Transition for DefaultState {
         if leading_spaces < 4 {
             states.push(
                 State::SetextHeading(
-                    SetextHeadingState::new(character)
+                    SetextHeadingState::new(character.clone())
                 )
             );
 
-            if let Ok(state) = ThematicBreakState::try_from(character) {
+            if let Ok(state) = ThematicBreakState::try_from(character.clone()) {
                 states.push(
                     State::ThematicBreak(state)
                 );
             }
 
-            if let Ok(state) = ATXHeadingState::try_from(character) {
+            if let Ok(state) = ATXHeadingState::try_from(character.clone()) {
                 states.push(
                     State::ATXHeading(state)
                 );
             }
 
-            if let Ok(state) = FencedCodeBlockState::new(leading_spaces, character) {
+            if let Ok(state) = FencedCodeBlockState::new(leading_spaces, character.clone()) {
                 states.push(
                     State::FencedCodeBlock(state)
                 );
