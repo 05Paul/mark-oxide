@@ -125,10 +125,10 @@ impl Transition for FencedCodeBlockState {
                     )
                 )
             }
-            (Character::Unescaped(character) | Character::Escaped(character), _, true, _, _, true) => Action::Pass(
+            (character, _, true, _, _, true) => Action::Pass(
                 State::FencedCodeBlock(
                     Self {
-                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.repeat(self.closing_fence_length).as_str() + character.to_string().as_str(),
+                        text: self.text + unicode::SPACE.to_string().repeat(self.leading_spaces.checked_sub(self.indentation).unwrap_or(0)).as_str() + self.fence_character.repeat(self.closing_fence_length).as_str() + character.to_raw_string().as_str(),
                         closing_fence_length: 0,
                         leading_spaces: 0,
                         non_leading: true,

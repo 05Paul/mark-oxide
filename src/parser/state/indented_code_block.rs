@@ -64,20 +64,10 @@ impl Transition for IndentedCodeBlockState {
                     }
                 )
             ),
-            (Character::Unescaped(character), _, _, 4..) => Action::Pass(
+            (character, _, _, 4..) => Action::Pass(
                 State::IndentedCodeBlock(
                     Self {
-                        text: self.text + self.line_break_buffer.as_str() + character.to_string().as_str(),
-                        line_break_buffer: "".into(),
-                        newline: false,
-                        ..self
-                    }
-                )
-            ),
-            (Character::Escaped(character), _, _, 4..) => Action::Pass(
-                State::IndentedCodeBlock(
-                    Self {
-                        text: self.text + self.line_break_buffer.as_str() + "\\" + character.to_string().as_str(),
+                        text: self.text + self.line_break_buffer.as_str() + character.to_raw_string().as_str(),
                         line_break_buffer: "".into(),
                         newline: false,
                         ..self

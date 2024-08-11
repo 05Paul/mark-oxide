@@ -31,8 +31,8 @@ impl Character {
 
     pub fn to_raw_string(&self) -> String {
         match self {
-            Character::Escaped(character) |
             Character::Unescaped(character) => character.to_string(),
+            Character::Escaped(character) => format!("\\{character}"),
             Character::Reference { raw, .. } => raw.clone(),
         }
     }
