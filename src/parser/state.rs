@@ -1,101 +1,98 @@
-use crate::parser::action::Action;
 use crate::parser::character::Character;
-use crate::parser::state::atx_heading::ATXHeadingState;
+use crate::parser::document::block::Block;
+use crate::parser::effect::DeterministicTransitionEffect;
+use crate::parser::line_ending::LineEnding;
 use crate::parser::state::default::DefaultState;
-use crate::parser::state::fenced_code_block::FencedCodeBlockState;
-use crate::parser::state::indented_code_block::IndentedCodeBlockState;
 use crate::parser::state::potential::PotentialState;
-use crate::parser::state::setext_heading::SetextHeadingState;
-use crate::parser::state::thematic_break::ThematicBreakState;
-use crate::unicode;
+use crate::parser::transition::{Transition, TransitionEffect};
 
 mod default;
 mod potential;
-mod thematic_break;
-mod atx_heading;
-mod indented_code_block;
-mod setext_heading;
-mod fenced_code_block;
+mod sub_state;
 
-pub trait Transition {
-    fn transition(self, character: Character) -> Action;
-    fn end_line(self, line_ending: LineEnding) -> Action;
-    fn end(self) -> Action;
+type HandlerTransitionEffect = DeterministicTransitionEffect<(), Option<Block>>;
+
+pub struct StateHandler(Option<State>);
+
+impl Transition for &mut StateHandler {
+    type Effect = HandlerTransitionEffect;
+
+    fn transition(self, character: Character) -> Self::Effect {
+        let transition = match self.0.take() {
+            None => return HandlerTransitionEffect::dismiss(),
+            Some(state) => state.transition(character),
+        };
+        let (state, block) = transition.content();
+
+        self.0 = Some(state);
+
+        HandlerTransitionEffect::complete(block)
+    }
+
+    fn end_line(self, line_ending: LineEnding) -> Self::Effect {
+        let transition = match self.0.take() {
+            None => return HandlerTransitionEffect::dismiss(),
+            Some(state) => state.end_line(line_ending),
+        };
+        let (state, block) = transition.content();
+
+        self.0 = Some(state);
+
+        HandlerTransitionEffect::complete(block)
+    }
+
+    fn end(self) -> <Self::Effect as TransitionEffect>::Outcome {
+        self.0.take()?.end()
+    }
 }
 
-pub trait SubTransition: Transition {
-    fn is_start(value: Character) -> bool;
-}
-
-#[derive(Clone, Copy)]
-pub enum LineEnding {
-    LineFeed,
-    CarriageReturn,
-    CarriageReturnLineFeed,
-}
-
-impl Into<String> for LineEnding {
-    fn into(self) -> String {
-        match self {
-            LineEnding::LineFeed => format!("{}", unicode::LINE_FEED),
-            LineEnding::CarriageReturn => format!("{}", unicode::CARRIAGE_RETURN),
-            LineEnding::CarriageReturnLineFeed => format!("{}{}", unicode::CARRIAGE_RETURN, unicode::LINE_FEED),
-        }
+impl Default for StateHandler {
+    fn default() -> Self {
+        Self(Some(Default::default()))
     }
 }
 
 #[derive(Clone)]
 pub enum State {
     Default(DefaultState),
+    Potential(PotentialState),
+    /*
     ATXHeading(ATXHeadingState),
     SetextHeading(SetextHeadingState),
     ThematicBreak(ThematicBreakState),
     IndentedCodeBlock(IndentedCodeBlockState),
     FencedCodeBlock(FencedCodeBlockState),
-    Potential(PotentialState),
+
+     */
+}
+
+impl Transition for State {
+    type Effect = DeterministicTransitionEffect<State, Option<Block>>;
+
+    fn transition(self, character: Character) -> Self::Effect {
+        match self {
+            State::Default(state) => state.transition(character),
+            State::Potential(state) => state.transition(character),
+        }
+    }
+
+    fn end_line(self, line_ending: LineEnding) -> Self::Effect {
+        match self {
+            State::Default(state) => state.end_line(line_ending),
+            State::Potential(state) => state.end_line(line_ending),
+        }
+    }
+
+    fn end(self) -> <Self::Effect as TransitionEffect>::Outcome {
+        match self {
+            State::Default(state) => state.end(),
+            State::Potential(state) => state.end()
+        }
+    }
 }
 
 impl Default for State {
     fn default() -> Self {
         State::Default(DefaultState::default())
-    }
-}
-
-impl Transition for State {
-    fn transition(self, character: Character) -> Action {
-
-        match self {
-            State::Default(state) => state.transition(character),
-            State::ATXHeading(state) => state.transition(character),
-            State::SetextHeading(state) => state.transition(character),
-            State::ThematicBreak(state) => state.transition(character),
-            State::IndentedCodeBlock(state) => state.transition(character),
-            State::FencedCodeBlock(state) => state.transition(character),
-            State::Potential(state) => state.transition(character),
-        }
-    }
-
-    fn end_line(self, line_ending: LineEnding) -> Action {
-        match self {
-            State::Default(state) => state.end_line(line_ending),
-            State::ATXHeading(state) => state.end_line(line_ending),
-            State::SetextHeading(state) => state.end_line(line_ending),
-            State::ThematicBreak(state) => state.end_line(line_ending),
-            State::IndentedCodeBlock(state) => state.end_line(line_ending),
-            State::FencedCodeBlock(state) => state.end_line(line_ending),
-            State::Potential(state) => state.end_line(line_ending),
-        }
-    }
-
-    fn end(self) -> Action {
-        match self {
-            State::Default(state) => state.end(),
-            State::ATXHeading(state) => state.end(),
-            State::SetextHeading(state) => state.end(),
-            State::ThematicBreak(state) => state.end(),
-            State::IndentedCodeBlock(state) => state.end(),
-            State::FencedCodeBlock(state) => state.end(),
-            State::Potential(state) => state.end(),
-        }
     }
 }

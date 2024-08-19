@@ -1,17 +1,18 @@
-use crate::parser::character_parser::{CharacterParserState, TransitHandler, StateTransition, SubStateTransit, CharacterParserStateHandler};
+use crate::parser::character_parser::{CharacterParserState, CharParserStateHandler};
+use crate::parser::character_parser::character_transition::{CharacterSubTransition, CharacterTransitionHandler, CharacterStateTransition};
 
 pub struct PotentialCharacterReferenceState {
     content: String,
 }
 
-impl SubStateTransit for PotentialCharacterReferenceState {
-    type Handler = CharacterParserStateHandler;
+impl CharacterSubTransition for PotentialCharacterReferenceState {
+    type Handler = CharParserStateHandler;
 
-    fn transition(&self, character: char) -> StateTransition<<Self::Handler as TransitHandler>::State, <Self::Handler as TransitHandler>::TransitionResult> {
+    fn transition(&self, character: char) -> CharacterStateTransition<<Self::Handler as CharacterTransitionHandler>::State, <Self::Handler as CharacterTransitionHandler>::TransitionResult> {
         todo!()
     }
 
-    fn end(&self) -> <Self::Handler as TransitHandler>::TransitionResult {
+    fn end(&self) -> <Self::Handler as CharacterTransitionHandler>::TransitionResult {
         todo!()
     }
 }

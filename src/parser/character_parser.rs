@@ -1,24 +1,23 @@
-use std::ops::Deref;
-use crate::parser::action::Action;
-use crate::parser::character_parser::carriage_return_state::CarriageReturnState;
-use crate::parser::character_parser::character_transition_result::{CharacterTransitionResult, PositionedLineEnding};
-use crate::parser::character_parser::default_state::DefaultState;
+use crate::parser::character_parser::carriage_return::CarriageReturnState;
+use crate::parser::character_parser::character_transition::{CharacterSubTransition, CharacterTransitionHandler, CharacterTransitionResult, PositionedLineEnding};
+use crate::parser::character_parser::default::DefaultState;
 use crate::parser::character_parser::potential_character_reference::PotentialCharacterReferenceState;
-use crate::parser::character_parser::potential_escape_state::PotentialEscapeState;
+use crate::parser::character_parser::potential_escape::PotentialEscapeState;
+use crate::parser::document::block::Block;
 use crate::parser::document::Document;
-use crate::parser::state::{State, Transition};
+use crate::parser::state::StateHandler;
+use crate::parser::transition::{Transition, TransitionEffect};
 
-mod default_state;
-mod potential_escape_state;
-mod carriage_return_state;
+mod default;
+mod potential_escape;
+mod carriage_return;
 mod potential_character_reference;
-mod character_transition_result;
+mod character_transition;
 
 pub struct CharacterParser {
     document: Document,
-    state: State,
-    character_buffer: Vec<char>,
-    internal_state_handler: CharacterParserStateHandler,
+    state: StateHandler,
+    internal_state_handler: CharParserStateHandler,
 }
 
 impl CharacterParser {
@@ -26,121 +25,68 @@ impl CharacterParser {
         Self {
             document: Document::new(),
             state: Default::default(),
-            character_buffer: Vec::new(),
-            internal_state_handler: CharacterParserStateHandler(Default::default()),
+            internal_state_handler: CharParserStateHandler(Default::default()),
         }
     }
 
     pub fn parse_character(&mut self, character: char) {
         let result = self.internal_state_handler.transition(character);
 
-        self.state = Self::handle_transition_result(result, self.state.clone(), &mut self.document);
+        Self::handle_transition_result(result, &mut self.state, &mut self.document);
     }
 
     pub fn end_document(mut self) -> Document {
         let result = self.internal_state_handler.end();
 
-        self.state = Self::handle_transition_result(result, self.state, &mut self.document);
-        self.state = Self::handle_action(&mut self.document, self.state.end());
+        Self::handle_transition_result(result, &mut self.state, &mut self.document);
+        Self::handle_result(&mut self.document, self.state.end());
 
         self.document
     }
 
-    fn handle_transition_result(result: CharacterTransitionResult, mut state: State, document: &mut Document) -> State {
+    fn handle_transition_result(result: CharacterTransitionResult, state: &mut StateHandler, document: &mut Document) {
         if let Some(PositionedLineEnding::Before(line_ending)) = result.line_ending {
-            state = Self::handle_action(
+            let (_, block) = state.end_line(line_ending).content();
+            Self::handle_result(
                 document,
-                state.end_line(line_ending),
+                block,
             );
         }
 
         for character in result.characters {
-            state = Self::handle_action(document, state.transition(character));
-        }
-
-        if let Some(PositionedLineEnding::After(line_ending)) = result.line_ending {
-            state = Self::handle_action(
+            let (_, block) = state.transition(character).content();
+            Self::handle_result(
                 document,
-                state.end_line(line_ending),
+                block
             );
         }
 
-        state
+        if let Some(PositionedLineEnding::After(line_ending)) = result.line_ending {
+            let (_, block) = state.end_line(line_ending).content();
+            Self::handle_result(
+                document,
+                block,
+            );
+        }
     }
 
-    fn handle_action(document: &mut Document, action: Action) -> State {
-        match action {
-            Action::Complete(block) => {
-                document.push(block);
-                State::default()
-            }
-            Action::Pass(state) => state,
-            Action::Bi { first, second } => match (first.deref().clone(), second.deref().clone()) {
-                (Action::Complete(block), Action::Pass(state)) => {
-                    document.push(block);
-                    state
-                }
-                _ => {
-                    unreachable!("ONLY COMPLETE PASS ?");
-                }
-            }
-            _ => State::default(),
+    fn handle_result(document: &mut Document, block: Option<Block>) {
+        if let Some(block) = block {
+            document.push(block);
         }
     }
 }
 
-struct StateTransition<State, TransitionResult> {
-    state: State,
-    result: TransitionResult,
-}
+pub struct CharParserStateHandler(CharacterParserState);
 
-impl<State, TransitionResult> StateTransition<State, TransitionResult> {
-    pub fn new(state: impl Into<State>, result: TransitionResult) -> Self {
-        Self {
-            state: state.into(),
-            result,
-        }
-    }
-
-    pub fn transition_into<NewState: Into<State> + Default>(result: TransitionResult) -> Self {
-        Self {
-            state: NewState::default().into(),
-            result,
-        }
-    }
-
-    pub fn transition_into_from<NewState: Into<State>>(value: impl Into<NewState>, result: TransitionResult) -> Self {
-        Self {
-            state: value.into().into(),
-            result,
-        }
-    }
-}
-
-trait TransitHandler {
-    type State;
-    type TransitionResult;
-
-    fn transition(&mut self, character: char) -> Self::TransitionResult;
-    fn end(self) -> Self::TransitionResult;
-}
-
-trait SubStateTransit {
-    type Handler: TransitHandler;
-    fn transition(&self, character: char) -> StateTransition<<Self::Handler as TransitHandler>::State, <Self::Handler as TransitHandler>::TransitionResult>;
-    fn end(&self) -> <Self::Handler as TransitHandler>::TransitionResult;
-}
-
-struct CharacterParserStateHandler(CharacterParserState);
-
-enum CharacterParserState {
+pub enum CharacterParserState {
     Default(DefaultState),
     PotentialEscape(PotentialEscapeState),
     CarriageReturn(CarriageReturnState),
     PotentialCharacterReference(PotentialCharacterReferenceState),
 }
 
-impl TransitHandler for CharacterParserStateHandler {
+impl CharacterTransitionHandler for CharParserStateHandler {
     type State = CharacterParserState;
     type TransitionResult = CharacterTransitionResult;
 

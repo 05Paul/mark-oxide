@@ -1,18 +1,18 @@
 use crate::parser::character::Character;
-use crate::parser::character_parser::{CharacterParserState, TransitHandler, StateTransition, SubStateTransit, CharacterParserStateHandler};
-use crate::parser::character_parser::character_transition_result::{CharacterTransitionResult, PositionedLineEnding};
-use crate::parser::character_parser::default_state::DefaultState;
+use crate::parser::character_parser::{CharacterParserState, CharParserStateHandler};
+use crate::parser::character_parser::character_transition::{CharacterStateTransition, CharacterSubTransition, CharacterTransitionHandler, CharacterTransitionResult, PositionedLineEnding};
+use crate::parser::character_parser::default::DefaultState;
 use crate::unicode;
 
 #[derive(Default)]
 pub struct PotentialEscapeState;
 
-impl SubStateTransit for PotentialEscapeState {
-    type Handler = CharacterParserStateHandler;
+impl CharacterSubTransition for PotentialEscapeState {
+    type Handler = CharParserStateHandler;
 
-    fn transition(&self, character: char) -> StateTransition<<Self::Handler as TransitHandler>::State, <Self::Handler as TransitHandler>::TransitionResult> {
+    fn transition(&self, character: char) -> CharacterStateTransition<<Self::Handler as CharacterTransitionHandler>::State, <Self::Handler as CharacterTransitionHandler>::TransitionResult> {
         if let Ok(character) = Character::new_unescaped(character) {
-            StateTransition::transition_into::<DefaultState>(
+            CharacterStateTransition::transition_into::<DefaultState>(
                 CharacterTransitionResult::characters(
                     vec![
                         character,
@@ -37,14 +37,14 @@ impl SubStateTransit for PotentialEscapeState {
                 result = result.with_line_ending(PositionedLineEnding::After(line_ending));
             }
 
-            StateTransition::new(
+            CharacterStateTransition::new(
                 transition.state,
                 result,
             )
         }
     }
 
-    fn end(&self) -> <Self::Handler as TransitHandler>::TransitionResult {
+    fn end(&self) -> <Self::Handler as CharacterTransitionHandler>::TransitionResult {
         CharacterTransitionResult::characters(
             vec![
                 Character::Unescaped(unicode::BACKSLASH)

@@ -6,9 +6,11 @@ use crate::parser::document::Document;
 
 mod state;
 mod character;
-mod action;
 mod document;
 mod character_parser;
+mod transition;
+mod line_ending;
+mod effect;
 
 pub struct Parser<R> {
     reader: R,

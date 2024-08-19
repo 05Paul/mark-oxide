@@ -1,4 +1,3 @@
-use crate::parser::action::Action;
 use crate::parser::document::block::Block;
 
 #[derive(Debug, Clone)]
@@ -32,10 +31,10 @@ impl Leaf {
             Leaf::FencedCodeBlock {text, .. } => format!("<pre><code>{text}</code></pre>\n"),
         }
     }
+}
 
-    pub fn into_action(self) -> Action {
-        Action::Complete(
-            Block::Leaf(self)
-        )
+impl Into<Block> for Leaf {
+    fn into(self) -> Block {
+        Block::Leaf(self)
     }
 }

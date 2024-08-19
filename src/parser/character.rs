@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::parser::state::LineEnding;
+use crate::parser::line_ending::LineEnding;
 use crate::unicode;
 
 #[derive(Clone)]
