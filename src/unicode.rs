@@ -14,10 +14,6 @@ pub fn is_blank(character: char) -> bool {
     character == TAB || character == SPACE
 }
 
-pub fn is_blank_text(text: &str) -> bool {
-    text.trim_matches(is_blank).is_empty()
-}
-
 pub fn replace_null(character: char) -> char {
     if character == NULL {
         REPLACEMENT

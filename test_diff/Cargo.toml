@@ -1,0 +1,9 @@
+[package]
+name = "test_diff"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mark-oxide.workspace = true
+roxmltree = "0.20.0"
+clap = { version = "4.5.16", features = ["derive"] }

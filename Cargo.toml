@@ -5,7 +5,7 @@ edition = "2021"
 
 
 [workspace]
-members = ["test_generator"]
+members = [ "test_diff","test_generator"]
 
 [workspace.dependencies]
 mark-oxide = { version = "0.1.0", path = "."}

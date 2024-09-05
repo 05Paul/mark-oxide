@@ -2,12 +2,12 @@ use crate::parser::character::Character;
 use crate::parser::document::block::Block;
 use crate::parser::effect::NonDeterministicTransitionEffect;
 use crate::parser::line_ending::LineEnding;
-use crate::parser::state::State;
 use crate::parser::state::sub_state::atx_heading::ATXHeadingState;
 use crate::parser::state::sub_state::fenced_code_block::FencedCodeBlockState;
 use crate::parser::state::sub_state::indented_code_block::IndentedCodeBlockState;
-use crate::parser::state::sub_state::stx_heading::STXHeadingState;
+use crate::parser::state::sub_state::stx_heading::{STXHeadingState};
 use crate::parser::state::sub_state::thematic_break::ThematicBreakState;
+use crate::parser::state::State;
 use crate::parser::transition::{Transition, TransitionEffect};
 
 pub(crate) mod fenced_code_block;
@@ -16,7 +16,7 @@ pub(crate) mod indented_code_block;
 pub(crate) mod stx_heading;
 pub(crate) mod thematic_break;
 
-#[derive(Clone)]
+
 pub enum SubState {
     ATXHeading(ATXHeadingState),
     STXHeading(STXHeadingState),
@@ -63,7 +63,6 @@ impl Transition for SubState {
     }
 }
 
-#[derive(Clone)]
 pub struct SubStates(Vec<SubState>);
 
 impl SubStates {

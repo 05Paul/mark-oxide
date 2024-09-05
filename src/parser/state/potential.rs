@@ -7,7 +7,7 @@ use crate::parser::state::{LineEnding, State};
 use crate::parser::state::sub_state::{SubState, SubStates};
 use crate::parser::transition::{Transition, TransitionEffect};
 
-#[derive(Clone)]
+
 pub struct PotentialState {
     states: SubStates,
 }

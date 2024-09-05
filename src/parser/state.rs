@@ -9,6 +9,7 @@ use crate::parser::transition::{Transition, TransitionEffect};
 mod default;
 mod potential;
 mod sub_state;
+mod handler;
 
 type HandlerTransitionEffect = DeterministicTransitionEffect<(), Option<Block>>;
 
@@ -52,7 +53,6 @@ impl Default for StateHandler {
     }
 }
 
-#[derive(Clone)]
 pub enum State {
     Default(DefaultState),
     Potential(PotentialState),
@@ -64,6 +64,14 @@ pub enum State {
     FencedCodeBlock(FencedCodeBlockState),
 
      */
+}
+
+impl State {
+    pub fn from_leading_space_count(leading_spaces: usize) -> Self {
+        State::Default(
+            DefaultState::from(leading_spaces)
+        )
+    }
 }
 
 impl Transition for State {

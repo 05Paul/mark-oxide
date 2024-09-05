@@ -1,112 +1,108 @@
+mod content;
+mod newline;
+mod blank;
+
 use crate::parser::character::Character;
 use crate::parser::document::block::Block;
 use crate::parser::document::leaf::Leaf;
 use crate::parser::effect::NonDeterministicTransitionEffect;
 use crate::parser::state::{LineEnding, State};
+use crate::parser::state::handler::Handler;
+use crate::parser::state::sub_state::indented_code_block::blank::BlankLineState;
+use crate::parser::state::sub_state::indented_code_block::content::ContentState;
+use crate::parser::state::sub_state::indented_code_block::newline::NewlineState;
 use crate::parser::state::sub_state::SubState;
 use crate::parser::transition::{Transition, TransitionEffect};
 use crate::unicode;
 
-#[derive(Clone)]
-pub struct IndentedCodeBlockState {
-    text: String,
-    line_break_buffer: String,
-    leading_space_count: usize,
-    leading_spaces: bool,
-    newline: bool,
-}
+pub type IndentedCodeBlockState = Handler<SubState, IndentedCodeBlockSubState>;
 
-impl IndentedCodeBlockState {
-    pub fn new(leading_internal_spaces: usize) -> Self {
-        Self {
-            text: "".repeat(leading_internal_spaces).into(),
-            line_break_buffer: "".into(),
-            leading_space_count: 4,
-            leading_spaces: false,
-            newline: true,
-        }
-    }
-}
-
-
-impl Transition for IndentedCodeBlockState {
-    type Effect = NonDeterministicTransitionEffect<SubState, Option<Block>>;
-
-    fn transition(mut self, character: Character) -> Self::Effect {
-        match (character.clone(), self.newline, self.leading_spaces, self.leading_space_count) {
-            (Character::Unescaped(unicode::SPACE | unicode::TAB), _, _, 0..=3) => {
-                self.leading_space_count += character.space_count();
-                self.newline = false;
-
-                NonDeterministicTransitionEffect::pass(self)
-            }
-            (Character::Unescaped(unicode::SPACE | unicode::TAB), _, true, 4..) => {
-                self.line_break_buffer.push_str(&*character.to_string());
-                self.leading_space_count += character.space_count();
-
-                NonDeterministicTransitionEffect::pass(self)
-            }
-            (character, _, _, 4..) => {
-                self.text.push_str(&*self.line_break_buffer);
-                self.text.push_str(&*character.to_raw_string());
-                self.newline = false;
-                self.line_break_buffer = "".into();
-
-                NonDeterministicTransitionEffect::pass(self)
-            }
-            (character, _, _, 0..=3) => {
-                let (state, _) = State::default()
-                    .transition(character).content();
-                NonDeterministicTransitionEffect::new(
-                    SubState::IntoSuper(state),
-                    Some(Leaf::IndentedCodeBlock {
-                        text: self.text.trim_end().to_string()
-                    }.into()),
-                )
-            }
-        }
-    }
-
-    fn end_line(mut self, line_ending: LineEnding) -> Self::Effect {
-        self.leading_spaces = true;
-        self.newline = true;
-        self.leading_space_count = 0;
-
-        if self.text.trim().is_empty() {
-            self.text = "".into();
-            self.line_break_buffer = "".into();
-            self.leading_space_count = 0;
-
-            return NonDeterministicTransitionEffect::pass(self);
-        }
-
-
-        if self.leading_spaces {
-            self.line_break_buffer.push_str(&*line_ending.to_string());
-
-            return NonDeterministicTransitionEffect::pass(self);
-        }
-
-        self.text.push_str(&*line_ending.to_string());
-        self.line_break_buffer = "".into();
-
-        NonDeterministicTransitionEffect::pass(self)
-    }
-
-    fn end(self) -> <Self::Effect as TransitionEffect>::Outcome {
-        Some(
-            Leaf::IndentedCodeBlock {
-                text: self.text.trim_end_matches([
-                    unicode::CARRIAGE_RETURN,
-                    unicode::LINE_FEED,
-                ]).to_string()
-            }.into()
+impl Default for IndentedCodeBlockState {
+    fn default() -> Self {
+        IndentedCodeBlockState::new(
+            IndentedCodeBlockSubState::default()
         )
     }
 }
 
 impl From<IndentedCodeBlockState> for SubState {
     fn from(value: IndentedCodeBlockState) -> Self {
-        SubState::IndentedCodeBlock(value)
+        value.state().into()
+    }
+}
+
+pub enum IndentedCodeBlockSubState {
+    Content(ContentState),
+    NewLine(NewlineState),
+    Blank(BlankLineState),
+    Complete(State),
+}
+
+impl IndentedCodeBlockSubState {
+    pub fn complete(state: impl Into<IndentedCodeBlockSubState>) -> NonDeterministicTransitionEffect<IndentedCodeBlockSubState, Option<Block>> {
+        NonDeterministicTransitionEffect::complete::<Block>(Leaf::IndentedCodeBlock {
+            text: state.into().content().trim_end_matches([
+                unicode::CARRIAGE_RETURN,
+                unicode::LINE_FEED,
+            ]).to_string(),
+        })
+    }
+
+    fn content(self) -> String {
+        match self {
+            IndentedCodeBlockSubState::Content(state) => state.content,
+            IndentedCodeBlockSubState::NewLine(state) => state.content,
+            IndentedCodeBlockSubState::Blank(state) => state.content,
+            IndentedCodeBlockSubState::Complete(_) => unreachable!(),
+        }
+    }
+}
+
+impl Transition for IndentedCodeBlockSubState {
+    type Effect = NonDeterministicTransitionEffect<IndentedCodeBlockSubState, Option<Block>>;
+
+    fn transition(self, character: Character) -> Self::Effect {
+        match self {
+            IndentedCodeBlockSubState::Content(state) => state.transition(character),
+            IndentedCodeBlockSubState::NewLine(state) => state.transition(character),
+            IndentedCodeBlockSubState::Blank(state) => state.transition(character),
+            IndentedCodeBlockSubState::Complete(_) => NonDeterministicTransitionEffect::dismiss(),
+        }
+    }
+
+    fn end_line(self, line_ending: LineEnding) -> Self::Effect {
+        match self {
+            IndentedCodeBlockSubState::Content(state) => state.end_line(line_ending),
+            IndentedCodeBlockSubState::NewLine(state) => state.end_line(line_ending),
+            IndentedCodeBlockSubState::Blank(state) => state.end_line(line_ending),
+            IndentedCodeBlockSubState::Complete(_) => NonDeterministicTransitionEffect::dismiss(),
+        }
+    }
+
+    fn end(self) -> <Self::Effect as TransitionEffect>::Outcome {
+        match self {
+            IndentedCodeBlockSubState::Content(state) => state.end(),
+            IndentedCodeBlockSubState::NewLine(state) => state.end(),
+            IndentedCodeBlockSubState::Blank(state) => state.end(),
+            IndentedCodeBlockSubState::Complete(_) => None,
+        }
+    }
+}
+
+
+impl Default for IndentedCodeBlockSubState {
+    fn default() -> Self {
+        IndentedCodeBlockSubState::Blank(BlankLineState::default())
+    }
+}
+
+impl From<IndentedCodeBlockSubState> for SubState {
+    fn from(value: IndentedCodeBlockSubState) -> Self {
+        match value {
+            IndentedCodeBlockSubState::Complete(state) => SubState::IntoSuper(state),
+            state => SubState::IndentedCodeBlock(
+                IndentedCodeBlockState::new(state)
+            ),
+        }
     }
 }

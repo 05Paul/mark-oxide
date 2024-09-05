@@ -91,6 +91,10 @@ impl<State, Outcome> NonDeterministicTransitionEffect<State, Outcome> {
             outcome: outcome.into().into(),
         }
     }
+
+    pub fn end(self) -> Outcome {
+        self.outcome
+    }
 }
 
 impl<State, Outcome> NonDeterministicTransitionEffect<State, Outcome>
